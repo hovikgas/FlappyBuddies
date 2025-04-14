@@ -18,7 +18,7 @@ export default function SinglePlayerPage() {
   const [canvasWidth, setCanvasWidth] = useState(0);
   const [canvasHeight, setCanvasHeight] = useState(0);
   const [gameInitialized, setGameInitialized] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef(null);
 
   const gravity = 0.5;
   const jumpStrength = -10;
@@ -142,91 +142,10 @@ export default function SinglePlayerPage() {
 
          if (
            birdRight > obstacleLeft &&
-           birdLeft < obstacleRight &&
-           (birdTop < obstacle.height || birdBottom > obstacle.height + obstacleGap)
-         ) {
-            setGameOver(true);
-          }
-        });
-
-        // Update Score
-        setObstacles(prevObstacles => {
-          let newScore = score;
-          const updatedObstacles = prevObstacles.map(obstacle => {
-            if (birdX > obstacle.x + obstacleWidth && !obstacle.passed) {
-              newScore += 2;
-              return { ...obstacle, passed: true };
-            }
-            return obstacle;
-          });
-          setScore(newScore);
-           if (ctx) {
-             ctx.fillStyle = scoreColor;
-             ctx.font = "20px Arial";
-             ctx.fillText(`Score: ${newScore}`, 10, canvasHeight - 20);
-           }
-          return updatedObstacles;
-        });
-
-        animationFrameId = requestAnimationFrame(updateGame);
-      };
-
-    const handleJump = () => {
-      setVelocity(jumpStrength);
-    };
-
-    const handleClick = () => {
-      handleJump();
-    };
-
-    canvas.addEventListener("click", handleClick);
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code === "Space") {
-        handleJump();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-
-    const initializeGame = () => {
-      if (canvas && ctx) {
-        setGameInitialized(true);
-
-        // Initial obstacle
-        const initialHeight = Math.floor(Math.random() * (canvas.height / 2)) + 50;
-        setObstacles([{ x: canvas.width, height: initialHeight, passed: false }]);
-      }
-    };
-
-    initializeGame();
-
-    if (gameInitialized && !gameOver) {
-      animationFrameId = requestAnimationFrame(updateGame);
-    }
-
-    return () => {
-      window.removeEventListener("resize", resizeCanvas);
-      window.removeEventListener("keydown", handleKeyDown);
-      canvas.removeEventListener("click", handleClick);
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [gameOver]);
-
-  const resetGame = () => {
-    setBirdY(200);
-    setVelocity(0);
-    setObstacles([]);
-    setScore(0);
-    setGameOver(false);
-    setGameInitialized(false);
-  };
-
-  return (
-    
-      
-        Single Player
-      
-      
+           birdLeft 0
+         )}
+       
+     
         Tap or Press Space to Flap!
         
           
@@ -236,17 +155,16 @@ export default function SinglePlayerPage() {
         
           Score: {score}
         
-      
-      
-        {gameOver && (
-          
-            Game Over!
-            
-              Play Again
-            
-          
-        )}
-      
-    
-  );
+       
+       {gameOver && (
+         
+           Game Over!
+           
+             Play Again
+           
+         
+       )}
+     
+   );
 }
+
