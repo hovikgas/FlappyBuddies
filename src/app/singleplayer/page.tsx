@@ -7,11 +7,11 @@ const obstacleGap = 200;
 const birdSize = 30;
 const birdColor = "yellow";
 const obstacleColor = "green";
-const initialBirdY = 200;
+const initialBirdYRatio = 0.5; // Ratio of canvas height
 const gravity = 0.5;
 const jumpVelocity = -10;
-const obstacleSpeed = 2;
-const initialObstacleX = 600;
+const obstacleSpeedRatio = 0.005; // Ratio of canvas width
+const initialObstacleXRatio = 1; // Ratio of canvas width
 
 interface Obstacle {
   x: number;
@@ -20,15 +20,19 @@ interface Obstacle {
 
 export default function SinglePlayerPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [birdY, setBirdY] = useState(initialBirdY);
+  const [birdY, setBirdY] = useState(0);
   const [velocity, setVelocity] = useState(0);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [gameInitialized, setGameInitialized] = useState(false);
+  const [canvasWidth, setCanvasWidth] = useState(600);
+  const [canvasHeight, setCanvasHeight] = useState(400);
 
   const resetGame = () => {
-    setBirdY(initialBirdY);
+    if (!canvasRef.current) return;
+    const canvas = canvasRef.current;
+    setBirdY(canvas.height * initialBirdYRatio);
     setVelocity(0);
     setObstacles([]);
     setScore(0);
@@ -36,24 +40,51 @@ export default function SinglePlayerPage() {
   };
 
   // Function to generate new obstacles
-  const generateObstacle = (canvasHeight: number): Obstacle => {
+  const generateObstacle = (): Obstacle => {
+    if (!canvasRef.current) return { x: 0, height: 0 };
+    const canvasHeight = canvasRef.current.height;
     const minObstacleHeight = 50;
     const maxObstacleHeight = canvasHeight - obstacleGap - minObstacleHeight;
     const height =
       minObstacleHeight + Math.random() * (maxObstacleHeight - minObstacleHeight);
-    return { x: initialObstacleX, height: height };
+    return { x: canvasRef.current.width * initialObstacleXRatio, height: height };
   };
 
   const initializeGame = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    canvas.width = window.innerWidth * 0.8; // Set width to 80% of screen width
+    canvas.height = window.innerHeight * 0.6; // Set height to 60% of screen height
+    setCanvasWidth(canvas.width);
+    setCanvasHeight(canvas.height);
+
     resetGame();
     setObstacles([
-      generateObstacle(canvas.height),
-      generateObstacle(canvas.height),
+      generateObstacle(),
+      generateObstacle(),
     ]);
     setGameInitialized(true);
   };
+
+  useEffect(() => {
+     const handleResize = () => {
+       if (!canvasRef.current) return;
+       const canvas = canvasRef.current;
+       canvas.width = window.innerWidth * 0.8;
+       canvas.height = window.innerHeight * 0.6;
+       setCanvasWidth(canvas.width);
+       setCanvasHeight(canvas.height);
+       resetGame();
+     };
+
+     window.addEventListener('resize', handleResize);
+
+     return () => {
+       window.removeEventListener('resize', handleResize);
+     };
+   }, []);
+
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -61,9 +92,6 @@ export default function SinglePlayerPage() {
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
-    canvas.width = 600;
-    canvas.height = 400;
 
     let animationFrameId: number;
 
@@ -86,6 +114,7 @@ export default function SinglePlayerPage() {
 
       // Obstacle movement and drawing
       setObstacles((prevObstacles) => {
+        const obstacleSpeed = canvasWidth * obstacleSpeedRatio;
         const updatedObstacles = prevObstacles.map((obstacle) => ({
           ...obstacle,
           x: obstacle.x - obstacleSpeed,
@@ -93,7 +122,7 @@ export default function SinglePlayerPage() {
 
         if (updatedObstacles.length > 0 && updatedObstacles[0].x < -obstacleWidth) {
           updatedObstacles.shift();
-          updatedObstacles.push(generateObstacle(canvas.height));
+          updatedObstacles.push(generateObstacle());
           setScore((prevScore) => prevScore + 1);
         }
 
@@ -101,25 +130,25 @@ export default function SinglePlayerPage() {
       });
 
       // Draw obstacles
-      ctx.fillStyle = obstacleColor;
-      obstacles.forEach((obstacle) => {
-        ctx.fillRect(obstacle.x, 0, obstacleWidth, obstacle.height);
-        ctx.fillRect(
-          obstacle.x,
-          obstacle.height + obstacleGap,
-          obstacleWidth,
-          canvas.height - obstacle.height - obstacleGap
-        );
+       ctx.fillStyle = obstacleColor;
+       obstacles.forEach((obstacle) => {
+         ctx.fillRect(obstacle.x, 0, obstacleWidth, obstacle.height);
+         ctx.fillRect(
+           obstacle.x,
+           obstacle.height + obstacleGap,
+           obstacleWidth,
+           canvas.height - obstacle.height - obstacleGap
+         );
 
-        // Collision detection
-        if (
-          50 + birdSize > obstacle.x &&
-          50 < obstacle.x + obstacleWidth &&
-          (birdY < obstacle.height || birdY + birdSize > obstacle.height + obstacleGap)
-        ) {
-          setGameOver(true);
-        }
-      });
+         // Collision detection
+         if (
+           50 + birdSize > obstacle.x &&
+           50 < obstacle.x + obstacleWidth &&
+           (birdY < obstacle.height || birdY + birdSize > obstacle.height + obstacleGap)
+         ) {
+           setGameOver(true);
+         }
+       });
 
       // Check for game over (bird hitting top or bottom)
       if (birdY < 0 || birdY + birdSize > canvas.height) {
@@ -142,9 +171,9 @@ export default function SinglePlayerPage() {
     };
 
     // Jump function
-    const handleJump = () => {
-      setVelocity(jumpVelocity);
-    };
+     const handleJump = () => {
+       setVelocity(jumpVelocity);
+     };
 
     // Event listeners for jump
     window.addEventListener("keydown", (e) => {
@@ -172,7 +201,7 @@ export default function SinglePlayerPage() {
       });
       cancelAnimationFrame(animationFrameId);
     };
-  }, [gameOver, gameInitialized, obstacles, birdY, score]);
+  }, [gameInitialized, canvasWidth, canvasHeight, obstacles, birdY, score, gameOver]);
 
   const handleCanvasClick = () => {
     setVelocity(jumpVelocity);
