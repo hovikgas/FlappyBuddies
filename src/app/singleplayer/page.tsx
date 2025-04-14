@@ -13,7 +13,7 @@ export default function SinglePlayerPage() {
   try {
     const [birdY, setBirdY] = useState(200);
     const [velocity, setVelocity] = useState(0);
-    const [obstacles, setObstacles: Obstacle[]>([]);
+    const [obstacles, setObstacles] = useState<Obstacle[]>([]);
     const [score, setScore] = useState(0);
     const [gameOver, setGameOver] = useState(false);
     const [canvasWidth, setCanvasWidth] = useState(0);
@@ -187,7 +187,6 @@ export default function SinglePlayerPage() {
         animationFrameId = requestAnimationFrame(updateGame);
       }
 
-
       // Start the game loop
        updateGame();
 
@@ -210,6 +209,11 @@ export default function SinglePlayerPage() {
       setScore(0);
       setGameOver(false);
       setGameInitialized(true);
+     const canvas = canvasRef.current;
+     const ctx = canvas?.getContext("2d");
+     if (ctx) {
+       ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+     }
     };
 
     const handleJump = () => {
