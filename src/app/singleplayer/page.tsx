@@ -12,7 +12,7 @@ interface Obstacle {
 export default function SinglePlayerPage() {
   const [birdY, setBirdY] = useState(200);
   const [velocity, setVelocity] = useState(0);
-  const [obstacles, setObstacles] = useState<Obstacle[]>([]);
+  const [obstacles, setObstacles: Obstacle[]>([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [canvasWidth, setCanvasWidth] = useState(0);
@@ -106,65 +106,146 @@ export default function SinglePlayerPage() {
       }
 
         // Update Obstacles
-       setObstacles(prevObstacles => {
-         const updatedObstacles = prevObstacles.map(obstacle => ({
-           ...obstacle,
-           x: obstacle.x - obstacleSpeed,
-         }));
+        setObstacles(prevObstacles => {
+          const updatedObstacles = prevObstacles.map(obstacle => ({
+            ...obstacle,
+            x: obstacle.x - obstacleSpeed,
+          }));
 
-         // Remove passed obstacles
-         const visibleObstacles = updatedObstacles.filter(
-           obstacle => obstacle.x + obstacleWidth > 0
-         );
+          // Remove passed obstacles
+          const visibleObstacles = updatedObstacles.filter(
+            obstacle => obstacle.x + obstacleWidth > 0
+          );
 
-          // Add new obstacle if needed
-         if (
-           visibleObstacles.length === 0 ||
-           visibleObstacles[visibleObstacles.length - 1].x < canvas.width - newObstacleDistance
-         ) {
-           const height = Math.floor(Math.random() * (canvas.height / 2)) + 50;
-           visibleObstacles.push({ x: canvas.width, height, passed: false });
+           // Add new obstacle if needed
+          if (
+            visibleObstacles.length === 0 ||
+            visibleObstacles[visibleObstacles.length - 1].x < canvas.width - newObstacleDistance
+          ) {
+            const height = Math.floor(Math.random() * (canvas.height / 2)) + 50;
+            visibleObstacles.push({ x: canvas.width, height, passed: false });
+          }
+
+          return visibleObstacles;
+        });
+
+        // Collision Detection
+        obstacles.forEach(obstacle => {
+          if (!ctx) return;
+
+          const birdTop = birdY - birdHeight / 2;
+          const birdBottom = birdY + birdHeight / 2;
+          const birdLeft = birdX - birdWidth / 2;
+          const birdRight = birdX + birdWidth / 2;
+          const obstacleLeft = obstacle.x;
+          const obstacleRight = obstacle.x + obstacleWidth;
+
+          if (
+            birdRight > obstacleLeft &&
+            birdLeft < obstacleRight &&
+            birdBottom > 0 && // Ensure not hitting top
+            birdTop < obstacle.height
+          ) {
+            setGameOver(true);
+          }
+
+          if (
+            birdRight > obstacleLeft &&
+            birdLeft < obstacleRight &&
+            birdTop < canvas.height &&
+            birdBottom > canvas.height - obstacle.height
+          ) {
+            setGameOver(true);
+          }
+
+          if (obstacleLeft + obstacleWidth < birdX && !obstacle.passed) {
+            setObstacles(prevObstacles => {
+              return prevObstacles.map(obs => {
+                if (obs.x === obstacle.x) {
+                  return { ...obs, passed: true };
+                }
+                 return obs;
+              });
+            });
+
+           setScore(prevScore => {
+             const newScore = prevScore + 1;
+             return newScore;
+           });
          }
-
-         return visibleObstacles;
        });
+ 
+         if (ctx) {
+          ctx.fillStyle = scoreColor;
+          ctx.font = "20px Arial";
+          ctx.fillText(`Score: ${score}`, 10, canvasHeight - 20);
+        }
+      };
 
-       // Collision Detection
-       obstacles.forEach(obstacle => {
-         if (!ctx) return;
+      if (gameInitialized && !gameOver) {
+        animationFrameId = requestAnimationFrame(updateGame);
+      }
+    };
 
-         const birdTop = birdY - birdHeight / 2;
-         const birdBottom = birdY + birdHeight / 2;
-         const birdLeft = birdX - birdWidth / 2;
-         const birdRight = birdX + birdWidth / 2;
-         const obstacleLeft = obstacle.x;
-         const obstacleRight = obstacle.x + obstacleWidth;
+    updateGame(); // Start the game loop
 
-         if (
-           birdRight > obstacleLeft &&
-           birdLeft 0
-         )}
+    return () => {
+      window.removeEventListener("resize", resizeCanvas);
+      canvas.removeEventListener("click", handleJump);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [gameOver]);
+
+  const resetGame = () => {
+    setBirdY(200);
+    setVelocity(0);
+    setObstacles([]);
+    setObstacles([{ x: canvasWidth, height: Math.floor(Math.random() * (canvasHeight / 2)) + 50, passed: false }]);
+    setScore(0);
+    setGameOver(false);
+    setGameInitialized(true);
+  };
+
+  const handleJump = () => {
+    setVelocity(jumpStrength);
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.addEventListener("click", handleJump);
+
+    return () => {
+      canvas.removeEventListener("click", handleJump);
+    };
+  }, []);
+
+  return (
        
-     
-        Tap or Press Space to Flap!
-        
-          
-            Tap to Play!
-          
-        
-        
-          Score: {score}
-        
-       
-       {gameOver && (
          
-           Game Over!
+           Single Player
+         
+         
+           {`${canvasWidth}x${canvasHeight}`}
+           Tap or Press Space to Flap!
            
-             Play Again
+             Tap to Play!
            
          
-       )}
-     
-   );
+         
+           Score: {score}
+         
+        
+        {gameOver && (
+          
+            Game Over!
+            
+              Play Again
+            
+          
+        )}
+      
+    );
 }
-
+"
