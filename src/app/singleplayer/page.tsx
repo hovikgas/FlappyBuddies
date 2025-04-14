@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 
 // Import bird images
-import birdDownFlap from "../../../public/images/bird-down-flap.png";
-import birdMidFlap from "../../../public/images/bird-mid-flap.png";
-import birdUpFlap from "../../../public/images/bird-up-flap.png";
+import birdDownFlap from "../../public/images/bird-down-flap.png";
+import birdMidFlap from "../../public/images/bird-mid-flap.png";
+import birdUpFlap from "../../public/images/bird-up-flap.png";
 import Image from "next/image";
 
 export default function SinglePlayerPage() {
@@ -131,22 +131,23 @@ export default function SinglePlayerPage() {
       });
 
       // Update Score
-      if (ctx) {
-        setObstacles((prevObstacles) => {
-          let newScore = score;
-          const updatedObstacles = prevObstacles.map((obstacle) => {
-            if (birdX > obstacle.x + obstacleWidth && !obstacle.passed) {
-              newScore += 1;
-              return { ...obstacle, passed: true };
-            }
-            return obstacle;
-          });
-          setScore(newScore);
-          return updatedObstacles;
-        });
-      }
-
-      animationFrameId = requestAnimationFrame(updateGame);
+       if (ctx) {
+           setObstacles((prevObstacles) => {
+               let newScore = score;
+               const updatedObstacles = prevObstacles.map((obstacle) => {
+                   if (birdX > obstacle.x + obstacleWidth && !obstacle.passed) {
+                       newScore += 1;
+                       return { ...obstacle, passed: true };
+                   }
+                   return obstacle;
+               });
+               setScore(newScore);
+               return updatedObstacles;
+           });
+           ctx.fillStyle = "coral";
+           ctx.font = "20px Arial";
+           ctx.fillText(`Score: ${score}`, 10, canvasHeight - 20);
+       }
     };
 
     const handleJump = () => {
@@ -181,7 +182,7 @@ export default function SinglePlayerPage() {
       canvas.removeEventListener("mousedown", handleMouseDown);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [gameOver]);
+  }, [gameOver, canvasHeight, canvasWidth, birdFrames, birdX, birdY, birdWidth, birdHeight, gravity, jumpStrength, obstacleWidth, obstacleGap, obstacleSpeed, score, obstacles]);
 
   useEffect(() => {
     setGameInitialized(true);
@@ -192,9 +193,17 @@ export default function SinglePlayerPage() {
     setVelocity(0);
     setObstacles([]);
     setScore(0);
-    setGameOver(false);
-    setGameInitialized(true);
-  };
+     setGameOver(false);
+     setGameInitialized(true);
+
+     if (canvasRef.current) {
+         const canvas = canvasRef.current;
+         const ctx = canvas.getContext("2d");
+         if (ctx) {
+             ctx.clearRect(0, 0, canvas.width, canvas.height);
+         }
+     }
+ };
 
   return (
     <>
@@ -204,14 +213,9 @@ export default function SinglePlayerPage() {
         
         
           
+          {canvasWidth}x{canvasHeight}
+          Tap or Press Space to Flap!
           
-          
-          
-          
-        
-        
-          
-            Tap or Press Space to Flap!
             
               
                 Tap to Play!
