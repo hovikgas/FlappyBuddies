@@ -57,7 +57,9 @@ export default function SinglePlayerPage() {
      const canvas = canvasRef.current;
      if (!canvas) return;
 
-     canvas.width = 600; // Set width to 600
+     // Ensure the canvas is not too wide on smaller screens
+     const calculatedWidth = Math.min(600, window.innerWidth - 40); // Subtract some padding
+     canvas.width = calculatedWidth; // Set width to 600
      canvas.height = 400; // Set height to 400
      setCanvasWidth(canvas.width);
      setCanvasHeight(canvas.height);
@@ -70,7 +72,9 @@ export default function SinglePlayerPage() {
      const handleResize = () => {
        if (!canvasRef.current) return;
        const canvas = canvasRef.current;
-       canvas.width = 600;
+       // Ensure the canvas is not too wide on smaller screens
+       const calculatedWidth = Math.min(600, window.innerWidth - 40); // Subtract some padding
+       canvas.width = calculatedWidth;
        canvas.height = 400;
        setCanvasWidth(canvas.width);
        setCanvasHeight(canvas.height);
@@ -167,7 +171,7 @@ export default function SinglePlayerPage() {
       }
 
       animationFrameId = requestAnimationFrame(updateGame);
-    };
+     };
 
     // Jump function
      const handleJump = () => {
@@ -200,7 +204,7 @@ export default function SinglePlayerPage() {
       });
       cancelAnimationFrame(animationFrameId);
     };
-   }, [gameInitialized, canvasWidth, canvasHeight, obstacles, birdY, score, gameOver]);
+   }, [gameOver]);
 
   const handleCanvasClick = () => {
     setVelocity(jumpVelocity);
