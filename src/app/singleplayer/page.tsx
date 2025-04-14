@@ -175,19 +175,22 @@ export default function SinglePlayerPage() {
          }
        });
  
-         if (ctx) {
-          ctx.fillStyle = scoreColor;
-          ctx.font = "20px Arial";
-          ctx.fillText(`Score: ${score}`, 10, canvasHeight - 20);
-        }
-      };
-
-      if (gameInitialized && !gameOver) {
+          if (ctx) {
+           ctx.fillStyle = scoreColor;
+           ctx.font = "20px Arial";
+           ctx.fillText(`Score: ${score}`, 10, canvasHeight - 20);
+         }
+       };
+ 
+       if (gameInitialized && !gameOver) {
         animationFrameId = requestAnimationFrame(updateGame);
-      }
-    };
-
-    updateGame(); // Start the game loop
+       }
+ 
+     
+ 
+     // Start the game loop
+     updateGame();
+ 
 
     return () => {
       window.removeEventListener("resize", resizeCanvas);
