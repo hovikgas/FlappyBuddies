@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -8,15 +7,31 @@ import { useState } from "react";
 
 export default function MultiplayerPage() {
   const [lobbyId, setLobbyId] = useState("");
+  const [isCreatingLobby, setIsCreatingLobby] = useState(false);
+  const [isJoiningLobby, setIsJoiningLobby] = useState(false);
+  const [lobbyDetails, setLobbyDetails] = useState<string | null>(null);
 
   const handleCreateLobby = () => {
-    // Logic to create a new lobby
-    console.log("Creating a new lobby");
+    setIsCreatingLobby(true);
+    setTimeout(() => {
+      const newLobbyId = Math.random().toString(36).substring(2, 15);
+      setLobbyId(newLobbyId);
+      setLobbyDetails(`Lobby created with ID: ${newLobbyId}`);
+      setIsCreatingLobby(false);
+    }, 1000);
   };
 
   const handleJoinLobby = () => {
-    // Logic to join an existing lobby
-    console.log(`Joining lobby with ID: ${lobbyId}`);
+    setIsJoiningLobby(true);
+    setTimeout(() => {
+      if (lobbyId) {
+        setLobbyDetails(`Joining lobby with ID: ${lobbyId}`);
+        setIsJoiningLobby(false);
+      } else {
+        setLobbyDetails("Lobby ID is required to join.");
+        setIsJoiningLobby(false);
+      }
+    }, 1000);
   };
 
   return (
@@ -31,8 +46,8 @@ export default function MultiplayerPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">Create a new lobby to invite your friends.</p>
-              <Button className="mt-4" onClick={handleCreateLobby}>
-                Create Lobby
+              <Button className="mt-4" onClick={handleCreateLobby} disabled={isCreatingLobby}>
+                {isCreatingLobby ? "Creating..." : "Create Lobby"}
               </Button>
             </CardContent>
           </Card>
@@ -51,16 +66,26 @@ export default function MultiplayerPage() {
                   placeholder="Enter Lobby ID"
                   value={lobbyId}
                   onChange={(e) => setLobbyId(e.target.value)}
+                  disabled={isJoiningLobby}
                 />
-                <Button onClick={handleJoinLobby} disabled={!lobbyId}>
-                  Join Lobby
+                <Button onClick={handleJoinLobby} disabled={!lobbyId || isJoiningLobby}>
+                  {isJoiningLobby ? "Joining..." : "Join Lobby"}
                 </Button>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {lobbyDetails && (
+          <div className="mt-6">
+            <Card className="w-full max-w-md">
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{lobbyDetails}</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </main>
     </div>
   );
 }
-
