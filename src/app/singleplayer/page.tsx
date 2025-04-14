@@ -232,30 +232,31 @@ export default function SinglePlayerPage() {
     }, []);
 
     return (
-      
-        
-          Single Player
-        
-        
-          {`${canvasWidth}x${canvasHeight}`}
-          Tap or Press Space to Flap!
-          
-            Tap to Play!
-          
-        
-        
-          Score: {score}
-        
-        
+      <div className="flex flex-col items-center justify-center h-full">
+        <canvas ref={canvasRef} width={canvasWidth} height={canvasHeight} />
+        <h1 className="text-2xl font-bold mt-4">Single Player</h1>
+        <p>
+          {canvasWidth}x{canvasHeight}
+        </p>
+        <Button
+          onClick={resetGame}
+          className="mt-4"
+          variant={"outline"}
+          disabled={gameInitialized}
+        >
+          Tap to Play!
+        </Button>
+        <div className="mt-4">Score: {score}</div>
         {gameOver && (
-          
-            Game Over!
-            
+          <div className="mt-4">
+            <h2 className="text-xl font-bold">Game Over!</h2>
+            <Button onClick={resetGame} className="mt-2">
               Play Again
-            
-          
+            </Button>
+          </div>
         )}
-      
+      </div>
+
     );
   } catch (e) {
     console.error(e);
