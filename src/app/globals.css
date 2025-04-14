@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,13 +9,13 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 203 71% 88%; /* Sky Blue: #87CEEB */
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
+    --primary: 25 100% 62%; /* Coral: #FF7F50 */
     --primary-foreground: 0 0% 98%;
     --secondary: 0 0% 96.1%;
     --secondary-foreground: 0 0% 9%;
@@ -86,3 +87,4 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
