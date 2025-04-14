@@ -82,7 +82,7 @@ export default function SinglePlayerPage() {
         );
 
         // Collision detection
-         if (
+        if (
           50 + birdSize > obstacle.x &&
           50 < obstacle.x + obstacleWidth &&
           (birdY < obstacle.height || birdY + birdSize > obstacle.height + obstacleGap)
@@ -128,10 +128,16 @@ export default function SinglePlayerPage() {
 
     canvas.addEventListener("click", handleJump);
 
+    // Add touch event listener for mobile devices
+    window.addEventListener("touchmove", (e) => {
+        handleJump();
+    });
+
     // Clean up function
     return () => {
       window.removeEventListener("keydown", handleJump);
       canvas.removeEventListener("click", handleJump);
+      window.removeEventListener("touchmove", handleJump);
       cancelAnimationFrame(animationFrameId);
     };
   }, [gameOver]);
