@@ -82,7 +82,7 @@ export default function SinglePlayerPage() {
         );
 
         // Collision detection
-        if (
+         if (
           50 + birdSize > obstacle.x &&
           50 < obstacle.x + obstacleWidth &&
           (birdY < obstacle.height || birdY + birdSize > obstacle.height + obstacleGap)
@@ -134,7 +134,7 @@ export default function SinglePlayerPage() {
       canvas.removeEventListener("click", handleJump);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [birdY, velocity, obstacles, score, gameOver]);
+  }, [gameOver]);
 
   const resetGame = () => {
     setBirdY(200);
@@ -158,3 +158,4 @@ export default function SinglePlayerPage() {
     </div>
   );
 }
+
