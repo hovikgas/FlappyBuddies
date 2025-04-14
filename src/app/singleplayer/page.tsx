@@ -22,7 +22,10 @@ export default function SinglePlayerPage() {
   const obstacleWidth = 50;
   const obstacleGap = 200;
   const birdX = 50;
+  const birdWidth = 34;
+  const birdHeight = 24;
 
+  // Bird animation state
   const [flapFrame, setFlapFrame] = useState(0); // 0: down, 1: mid, 2: up
   const flapFrames = 3;
 
@@ -46,7 +49,7 @@ export default function SinglePlayerPage() {
 
     let animationFrameId: number;
 
-    const drawBird = (x: number, y: number, frame: number) => {
+    const drawBird = (x: number, y: number) => {
       if (!ctx) return;
 
       ctx.fillStyle = "yellow"; // Bird color
@@ -81,19 +84,9 @@ export default function SinglePlayerPage() {
       // Beak
       ctx.fillStyle = "orange";
       ctx.beginPath();
-      if (frame === 0) {
-        ctx.moveTo(x + 34, y + 12);
-        ctx.lineTo(x + 44, y + 6);
-        ctx.lineTo(x + 44, y + 18);
-      } else if (frame === 2) {
-        ctx.moveTo(x + 34, y + 12);
-        ctx.lineTo(x + 44, y + 18);
-        ctx.lineTo(x + 44, y + 6);
-      } else {
-        ctx.moveTo(x + 34, y + 12);
-        ctx.lineTo(x + 42, y + 6);
-        ctx.lineTo(x + 42, y + 18);
-      }
+      ctx.moveTo(x + 34, y + 12);
+      ctx.lineTo(x + 44, y + 6);
+      ctx.lineTo(x + 44, y + 18);
       ctx.closePath();
       ctx.fill();
     };
@@ -103,7 +96,7 @@ export default function SinglePlayerPage() {
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      drawBird(birdX, birdY, flapFrame);
+      drawBird(birdX, birdY);
 
       ctx.fillStyle = "green";
       obstacles.forEach(obstacle => {
@@ -125,9 +118,9 @@ export default function SinglePlayerPage() {
         setBirdY(0);
         setVelocity(0);
       }
-      if (birdY > canvas.height - 24) {
+      if (birdY > canvas.height - birdHeight) {
         setGameOver(true);
-        setBirdY(canvas.height - 24);
+        setBirdY(canvas.height - birdHeight);
         setVelocity(0);
       }
 
@@ -156,16 +149,16 @@ export default function SinglePlayerPage() {
       });
 
       // Collision Detection
-       obstacles.forEach(obstacle => {
-         if (
-           birdX < obstacle.x + obstacleWidth &&
-           birdX + 34 > obstacle.x &&
-           (birdY < obstacle.height ||
-             birdY + 24 > obstacle.height + obstacleGap)
-         ) {
-           setGameOver(true);
-         }
-       });
+      obstacles.forEach(obstacle => {
+        if (
+          birdX < obstacle.x + obstacleWidth &&
+          birdX + birdWidth > obstacle.x &&
+          (birdY < obstacle.height ||
+            birdY + birdHeight > obstacle.height + obstacleGap)
+        ) {
+          setGameOver(true);
+        }
+      });
 
       // Update Score
       if (ctx) {
@@ -185,10 +178,7 @@ export default function SinglePlayerPage() {
         ctx.font = "20px Arial";
         ctx.fillText(`Score: ${score}`, 10, canvasHeight - 20);
       }
-
-      // Cycle Flap Animation
-      setFlapFrame(prevFrame => (prevFrame + 1) % flapFrames);
-     animationFrameId = requestAnimationFrame(updateGame);
+       animationFrameId = requestAnimationFrame(updateGame);
     };
 
     const handleJump = () => {
@@ -218,21 +208,7 @@ export default function SinglePlayerPage() {
       canvas.removeEventListener("mousedown", handleMouseDown);
        cancelAnimationFrame(animationFrameId);
     };
-  }, [
-    gameOver,
-    canvasHeight,
-    canvasWidth,
-    gravity,
-    jumpStrength,
-    obstacleWidth,
-    obstacleGap,
-    obstacleSpeed,
-    score,
-    flapFrames,
-    birdX,
-    birdY,
-    velocity,
-  ]);
+  }, [gameOver]);
 
   useEffect(() => {
     if (gameInitialized) {
@@ -247,6 +223,7 @@ export default function SinglePlayerPage() {
     setObstacles([]);
     setScore(0);
     setGameOver(false);
+    setGameInitialized(true);
   };
 
   return (
