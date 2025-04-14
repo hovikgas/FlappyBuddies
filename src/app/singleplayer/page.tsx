@@ -19,6 +19,7 @@ export default function SinglePlayerPage() {
     const [canvasWidth, setCanvasWidth] = useState(0);
     const [canvasHeight, setCanvasHeight] = useState(0);
     const [gameInitialized, setGameInitialized] = useState(false);
+    const [gameStarted, setGameStarted] = useState(false);
     const canvasRef = useRef(null);
 
     const gravity = 0.5;
@@ -194,6 +195,7 @@ export default function SinglePlayerPage() {
         window.removeEventListener("resize", resizeCanvas);
         canvas.removeEventListener("click", handleJump);
         cancelAnimationFrame(animationFrameId);
+        
       };
     }, [gameOver]);
 
@@ -214,11 +216,14 @@ export default function SinglePlayerPage() {
      if (ctx) {
        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
      }
+     setGameStarted(true)
     };
 
     const handleJump = () => {
+      if(!gameStarted) return resetGame()
       setVelocity(jumpStrength);
     };
+
 
     useEffect(() => {
       const canvas = canvasRef.current;
@@ -241,7 +246,7 @@ export default function SinglePlayerPage() {
         <Button
           onClick={resetGame}
           className="mt-4"
-          variant={"outline"}
+          variant={"outline"} hidden={gameStarted}
           disabled={gameInitialized}
         >
           Tap to Play!
@@ -267,4 +272,3 @@ export default function SinglePlayerPage() {
     ;
   }
 }
-"
