@@ -22,12 +22,15 @@ export default function SinglePlayerPage() {
   const obstacleWidth = 50;
   const obstacleGap = 200;
   const initialBirdYRatio = 0.5;
+  const birdX = 50;
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const calculatedWidth = Math.min(window.innerWidth * 0.95, 600);
+    canvas.width = 0;
+    canvas.height = 0;
     canvas.width = calculatedWidth;
     canvas.height = 400;
     setCanvasWidth(canvas.width);
@@ -53,18 +56,13 @@ export default function SinglePlayerPage() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Draw Bird
-       ctx.fillStyle = "yellow";
-       ctx.fillRect(50, birdY, 20, 20);
+      ctx.fillStyle = "yellow";
+      ctx.fillRect(birdX, birdY, 20, 20);
 
       // Draw Obstacles
       ctx.fillStyle = "green";
       obstacles.forEach((obstacle) => {
-        ctx.fillRect(
-          obstacle.x,
-          0,
-          obstacleWidth,
-          obstacle.height
-        );
+        ctx.fillRect(obstacle.x, 0, obstacleWidth, obstacle.height);
         ctx.fillRect(
           obstacle.x,
           obstacle.height + obstacleGap,
@@ -73,11 +71,12 @@ export default function SinglePlayerPage() {
         );
       });
 
-      // Draw Score
-      ctx.fillStyle = "black";
-      ctx.font = "20px Arial";
-      ctx.fillText(`Score: ${score}`, 10, 30);
-
+      if (gameInitialized) {
+        // Draw Score
+        ctx.fillStyle = "black";
+        ctx.font = "20px Arial";
+        ctx.fillText(`Score: ${score}`, 10, 30);
+      }
       // Update Bird Position
       setVelocity(velocity + gravity);
       setBirdY(birdY + velocity);
@@ -91,23 +90,23 @@ export default function SinglePlayerPage() {
       );
 
       // Generate New Obstacles
-      if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvas.width - 300) {
-        const minObstacleHeight = 50;
-        const maxObstacleHeight = canvas.height - obstacleGap - minObstacleHeight;
-        const randomObstacleHeight =
-          minObstacleHeight +
-          Math.random() * (maxObstacleHeight - minObstacleHeight);
-        setObstacles((prevObstacles) => [
-          ...prevObstacles,
-          { x: canvas.width, height: randomObstacleHeight },
-        ]);
-      }
+       if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvas.width - 300) {
+         const minObstacleHeight = 50;
+         const maxObstacleHeight = canvas.height - obstacleGap - minObstacleHeight;
+         const randomObstacleHeight =
+           minObstacleHeight +
+           Math.random() * (maxObstacleHeight - minObstacleHeight);
+         setObstacles((prevObstacles) => [
+           ...prevObstacles,
+           { x: canvas.width, height: randomObstacleHeight },
+         ]);
+       }
 
       // Collision Detection
       obstacles.forEach((obstacle) => {
         if (
-          50 < obstacle.x + obstacleWidth &&
-          50 + 20 > obstacle.x &&
+          birdX < obstacle.x + obstacleWidth &&
+          birdX + 20 > obstacle.x &&
           (birdY < obstacle.height || birdY + 20 > obstacle.height + obstacleGap)
         ) {
           setGameOver(true);
@@ -120,7 +119,9 @@ export default function SinglePlayerPage() {
       }
 
       // Remove passed obstacles
-      setObstacles((prevObstacles) => prevObstacles.filter(obstacle => obstacle.x + obstacleWidth > 0));
+      setObstacles((prevObstacles) =>
+        prevObstacles.filter((obstacle) => obstacle.x + obstacleWidth > 0)
+      );
 
       if (!gameOver) {
         animationFrameId = requestAnimationFrame(updateGame);
@@ -136,7 +137,7 @@ export default function SinglePlayerPage() {
     }
 
     if (!gameOver) {
-      updateGame();
+      animationFrameId = requestAnimationFrame(updateGame);
     }
 
     return () => {
@@ -153,13 +154,29 @@ export default function SinglePlayerPage() {
     setObstacles([]);
     setScore(0);
     setGameOver(false);
+
+    // Start generating new obstacles immediately after reset
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const minObstacleHeight = 50;
+      const maxObstacleHeight = canvas.height - obstacleGap - minObstacleHeight;
+      const randomObstacleHeight =
+        minObstacleHeight +
+        Math.random() * (maxObstacleHeight - minObstacleHeight);
+      setObstacles([{ x: canvas.width, height: randomObstacleHeight }]);
+    }
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen py-2">
       <main className="flex flex-col items-center justify-center w-full flex-1 px-20 text-center">
         <h1 className="text-6xl font-bold text-primary">Single Player Mode</h1>
-        <canvas ref={canvasRef} width={600} height={400} className="border-2 border-black"></canvas>
+        <canvas
+          ref={canvasRef}
+          width={600}
+          height={400}
+          className="border-2 border-black"
+        ></canvas>
         <div className="text-2xl font-bold text-primary">Score: {score}</div>
         {gameOver && (
           <div>
