@@ -162,87 +162,23 @@ export default function SinglePlayerPage() {
             ctx.font = "20px Arial";
             ctx.fillText(`Score: ${newScore}`, 10, canvasHeight - 20);
           }
-        return updatedObstacles;
-      });
-
-      animationFrameId = requestAnimationFrame(updateGame);
-      };
-
-    const handleJump = () => {
-      setVelocity(jumpStrength);
-    };
-
-    if (gameInitialized && !gameOver) {
-      animationFrameId = requestAnimationFrame(updateGame);
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === " " || event.key === "ArrowUp") {
-        handleJump();
-      }
-    };
-
-    const handleMouseDown = () => {
-      handleJump();
-    };
-
-    canvas.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("resize", resizeCanvas);
-      document.removeEventListener("keydown", handleKeyDown);
-      canvas.removeEventListener("mousedown", handleMouseDown);
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [gameOver, canvasWidth, canvasHeight, birdColor, obstacleColor, scoreColor, birdSize, birdX, obstacleSpeed, obstacleWidth, obstacleGap, jumpStrength, gravity, birdY, velocity, score, obstacles, gameInitialized]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const initializeGame = () => {
-      resetGame();
-    };
-
-    if (gameInitialized) {
-      resetGame();
-    }
-    setGameInitialized(true);
-
-  }, []);
-
-  const resetGame = () => {
-    setBirdY(200);
-    setVelocity(0);
-    setObstacles([]);
-    setScore(0);
-    setGameOver(false);
-    setGameInitialized(true);
-  };
-
-  return (
-    <>
-      
-      <h1>Single Player</h1>
-
-      <p>{`Tap or Press Space to Flap!`}</p>
-
-      <div>
-        <div>
-          <p>Tap to Play!</p>
-        </div>
-        <div>
-          <p>Game Over!</p>
-          <p>Score: {score}</p>
-          <Button onClick={resetGame}>Play Again</Button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-"
+         return updatedObstacles;
+       });
+ 
+       animationFrameId = requestAnimationFrame(updateGame);
+@@ -166,7 +166,7 @@
+     };
+ 
+     if (gameInitialized && !gameOver) {
+-      animationFrameId = requestAnimationFrame(updateGame);
++        animationFrameId = requestAnimationFrame(updateGame);
+     }
+ 
+     const handleKeyDown = (event: KeyboardEvent) => {
+@@ -248,5 +248,4
+   );
+ }
+ 
+-"
++
++
