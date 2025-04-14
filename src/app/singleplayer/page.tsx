@@ -27,7 +27,7 @@ export default function SinglePlayerPage() {
   const [gameOver, setGameOver] = useState(false);
   const [gameInitialized, setGameInitialized] = useState(false);
   const [canvasWidth, setCanvasWidth] = useState(600);
-  const [canvasHeight, setCanvasHeight] = useState(400);
+   const [canvasHeight, setCanvasHeight] = useState(400);
 
   const resetGame = () => {
     if (!canvasRef.current) return;
@@ -63,171 +63,174 @@ export default function SinglePlayerPage() {
      canvas.height = 400; // Set height to 400
      setCanvasWidth(canvas.width);
      setCanvasHeight(canvas.height);
++    setBirdY(canvas.height * initialBirdYRatio);
++
 
      resetGame();
      setGameInitialized(true);
-   };
+    };
 
-  useEffect(() => {
-     const handleResize = () => {
-       if (!canvasRef.current) return;
-       const canvas = canvasRef.current;
-       // Ensure the canvas is not too wide on smaller screens
-       const calculatedWidth = Math.min(600, window.innerWidth - 40); // Subtract some padding
-       canvas.width = calculatedWidth;
-       canvas.height = 400;
-       setCanvasWidth(canvas.width);
-       setCanvasHeight(canvas.height);
-       resetGame();
-     };
+   useEffect(() => {
+      const handleResize = () => {
+        if (!canvasRef.current) return;
+        const canvas = canvasRef.current;
+        // Ensure the canvas is not too wide on smaller screens
+        const calculatedWidth = Math.min(600, window.innerWidth - 40); // Subtract some padding
+        canvas.width = calculatedWidth;
+        canvas.height = 400;
+        setCanvasWidth(canvas.width);
+        setCanvasHeight(canvas.height);
+        resetGame();
+      };
 
-     window.addEventListener('resize', handleResize);
+      window.addEventListener('resize', handleResize);
 
-     return () => {
-       window.removeEventListener('resize', handleResize);
-     };
-   }, []);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    }, []);
 
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+   useEffect(() => {
+     const canvas = canvasRef.current;
+     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+     const ctx = canvas.getContext("2d");
+     if (!ctx) return;
 
-    let animationFrameId: number;
+     let animationFrameId: number;
 
-    if (!gameInitialized) {
-      initializeGame();
-    }
+     if (!gameInitialized) {
+       initializeGame();
+     }
 
-    const updateGame = () => {
-      if (gameOver) return;
+     const updateGame = () => {
+       if (gameOver) return;
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Bird physics
-      setVelocity((prevVelocity) => prevVelocity + gravity);
-      setBirdY((prevBirdY) => prevBirdY + velocity);
+       // Bird physics
+       setVelocity((prevVelocity) => prevVelocity + gravity);
+       setBirdY((prevBirdY) => prevBirdY + velocity);
 
-      // Draw bird
-      ctx.fillStyle = birdColor;
-      ctx.fillRect(50, birdY, birdSize, birdSize);
+       // Draw bird
+       ctx.fillStyle = birdColor;
+       ctx.fillRect(50, birdY, birdSize, birdSize);
 
-      // Obstacle movement and drawing
-      setObstacles((prevObstacles) => {
-        const obstacleSpeed = canvasWidth * obstacleSpeedRatio;
-        const updatedObstacles = prevObstacles.map((obstacle) => ({
-          ...obstacle,
-          x: obstacle.x - obstacleSpeed,
-        }));
+       // Obstacle movement and drawing
+       setObstacles((prevObstacles) => {
+         const obstacleSpeed = canvasWidth * obstacleSpeedRatio;
+         const updatedObstacles = prevObstacles.map((obstacle) => ({
+           ...obstacle,
+           x: obstacle.x - obstacleSpeed,
+         }));
 
-        if (updatedObstacles.length > 0 && updatedObstacles[0].x < -obstacleWidth) {
-          updatedObstacles.shift();
-          updatedObstacles.push(generateObstacle());
-          setScore((prevScore) => prevScore + 1);
-        }
-
-        return updatedObstacles;
-      });
-
-      // Draw obstacles
-       ctx.fillStyle = obstacleColor;
-       obstacles.forEach((obstacle) => {
-         ctx.fillRect(obstacle.x, 0, obstacleWidth, obstacle.height);
-         ctx.fillRect(
-           obstacle.x,
-           obstacle.height + obstacleGap,
-           obstacleWidth,
-           canvas.height - obstacle.height - obstacleGap
-         );
-
-         // Collision detection
-         if (
-           50 + birdSize > obstacle.x &&
-           50 < obstacle.x + obstacleWidth &&
-           (birdY < obstacle.height || birdY + birdSize > obstacle.height + obstacleGap)
-         ) {
-           setGameOver(true);
+         if (updatedObstacles.length > 0 && updatedObstacles[0].x < -obstacleWidth) {
+           updatedObstacles.shift();
+           updatedObstacles.push(generateObstacle());
+           setScore((prevScore) => prevScore + 1);
          }
+
+         return updatedObstacles;
        });
 
-      // Check for game over (bird hitting top or bottom)
-      if (birdY < 0 || birdY + birdSize > canvas.height) {
-        setGameOver(true);
+       // Draw obstacles
+        ctx.fillStyle = obstacleColor;
+        obstacles.forEach((obstacle) => {
+          ctx.fillRect(obstacle.x, 0, obstacleWidth, obstacle.height);
+          ctx.fillRect(
+            obstacle.x,
+            obstacle.height + obstacleGap,
+            obstacleWidth,
+            canvas.height - obstacle.height - obstacleGap
+          );
+
+          // Collision detection
+          if (
+            50 + birdSize > obstacle.x &&
+            50 < obstacle.x + obstacleWidth &&
+            (birdY < obstacle.height || birdY + birdSize > obstacle.height + obstacleGap)
+          ) {
+            setGameOver(true);
+          }
+        });
+
+       // Check for game over (bird hitting top or bottom)
+       if (birdY < 0 || birdY + birdSize > canvas.height) {
+         setGameOver(true);
+        }
+
+       // Display score
+       ctx.fillStyle = "black";
+       ctx.font = "20px Arial";
+       ctx.fillText("Score: " + score, 10, 30);
+
+       // Game over message
+       if (gameOver) {
+         ctx.fillStyle = "red";
+         ctx.font = "40px Arial";
+         ctx.fillText("Game Over", canvas.width / 2 - 100, canvas.height / 2);
        }
 
-      // Display score
-      ctx.fillStyle = "black";
-      ctx.font = "20px Arial";
-      ctx.fillText("Score: " + score, 10, 30);
+       animationFrameId = requestAnimationFrame(updateGame);
+      };
 
-      // Game over message
-      if (gameOver) {
-        ctx.fillStyle = "red";
-        ctx.font = "40px Arial";
-        ctx.fillText("Game Over", canvas.width / 2 - 100, canvas.height / 2);
-      }
+     // Jump function
+      const handleJump = () => {
+        setVelocity(jumpVelocity);
+      };
 
-      animationFrameId = requestAnimationFrame(updateGame);
+     // Event listeners for jump
+     window.addEventListener("keydown", (e) => {
+       if (e.code === "Space") {
+         handleJump();
+       }
+     });
+
+     canvas.addEventListener("click", handleJump);
+
+     window.addEventListener("touchmove", (e) => {
+       handleJump();
+     });
+
+     animationFrameId = requestAnimationFrame(updateGame);
+
+     return () => {
+       window.removeEventListener("keydown", (e) => {
+         if (e.code === "Space") {
+           handleJump();
+         }
+       });
+       canvas.removeEventListener("click", handleJump);
+       window.removeEventListener("touchmove", (e) => {
+       });
+       cancelAnimationFrame(animationFrameId);
      };
+    }, [gameOver]);
 
-    // Jump function
-     const handleJump = () => {
-       setVelocity(jumpVelocity);
-     };
+   const handleCanvasClick = () => {
+     setVelocity(jumpVelocity);
+   };
 
-    // Event listeners for jump
-    window.addEventListener("keydown", (e) => {
-      if (e.code === "Space") {
-        handleJump();
-      }
-    });
+   return (
+     <div className="flex flex-col items-center justify-center min-h-screen py-2">
+       <main className="flex flex-col items-center justify-center w-full flex-1 px-20 text-center">
+         <h1 className="text-4xl font-bold text-primary">Single Player Mode</h1>
+         <canvas
+           ref={canvasRef}
+           className="border-2 border-black"
+           onClick={handleCanvasClick}
+         ></canvas>
+         {gameOver && (
+           <button className="mt-4 bg-primary text-white rounded px-4 py-2" onClick={() => {
+              setGameInitialized(false); // Re-initialize the game
+              resetGame();
+            }}>
+             Play Again
+           </button>
+         )}
+       </main>
+     </div>
+   );
+ }
 
-    canvas.addEventListener("click", handleJump);
-
-    window.addEventListener("touchmove", (e) => {
-      handleJump();
-    });
-
-    animationFrameId = requestAnimationFrame(updateGame);
-
-    return () => {
-      window.removeEventListener("keydown", (e) => {
-        if (e.code === "Space") {
-          handleJump();
-        }
-      });
-      canvas.removeEventListener("click", handleJump);
-      window.removeEventListener("touchmove", (e) => {
-      });
-      cancelAnimationFrame(animationFrameId);
-    };
-   }, [gameOver]);
-
-  const handleCanvasClick = () => {
-    setVelocity(jumpVelocity);
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen py-2">
-      <main className="flex flex-col items-center justify-center w-full flex-1 px-20 text-center">
-        <h1 className="text-4xl font-bold text-primary">Single Player Mode</h1>
-        <canvas
-          ref={canvasRef}
-          className="border-2 border-black"
-          onClick={handleCanvasClick}
-        ></canvas>
-        {gameOver && (
-          <button className="mt-4 bg-primary text-white rounded px-4 py-2" onClick={() => {
-             setGameInitialized(false); // Re-initialize the game
-             resetGame();
-           }}>
-            Play Again
-          </button>
-        )}
-      </main>
-    </div>
-  );
-}
