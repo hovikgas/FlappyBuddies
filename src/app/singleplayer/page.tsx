@@ -3,6 +3,12 @@
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 
+// Import bird images
+import birdDownFlap from "../../../public/bird-down-flap.png";
+import birdMidFlap from "../../../public/bird-mid-flap.png";
+import birdUpFlap from "../../../public/bird-up-flap.png";
+import Image from "next/image";
+
 export default function SinglePlayerPage() {
   const [birdY, setBirdY] = useState(200);
   const [velocity, setVelocity] = useState(0);
@@ -22,180 +28,213 @@ export default function SinglePlayerPage() {
   const obstacleWidth = 50;
   const obstacleGap = 200;
   const birdX = 50;
+  const birdWidth = 34;
+  const birdHeight = 24;
+
+  // Bird animation state
+  const [flapFrame, setFlapFrame] = useState(0);
+  const birdFrames = [birdDownFlap, birdMidFlap, birdUpFlap];
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const ctx = canvas?.getContext("2d");
 
-    const calculatedWidth = Math.min(window.innerWidth * 0.95, 600);
-    canvas.width = calculatedWidth;
-    canvas.height = 400;
-    setCanvasWidth(canvas.width);
-    setCanvasHeight(canvas.height);
-    setBirdY(200);
+    const resizeCanvas = () => {
+      if (!canvas) return;
+      const calculatedWidth = Math.min(window.innerWidth, 600);
+      canvas.width = calculatedWidth;
+      canvas.height = 400;
+      setCanvasWidth(canvas.width);
+      setCanvasHeight(canvas.height);
+    };
 
-    resetGame();
-    setGameInitialized(true);
-  }, []);
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
 
-  useEffect(() => {
-    if (!gameInitialized || !canvasRef.current || gameOver) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!canvas || !ctx) return;
 
     let animationFrameId: number;
 
     const updateGame = () => {
-      if (!ctx || !canvas) return;
-
+      if (gameOver) return;
+      // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Draw Bird
-      ctx.fillStyle = "yellow";
-      ctx.fillRect(birdX, birdY, 20, 20);
+      const currentBirdFrame = birdFrames[flapFrame];
+      if (currentBirdFrame) {
+        ctx.drawImage(
+          currentBirdFrame.src,
+          birdX,
+          birdY,
+          birdWidth,
+          birdHeight
+        );
+      }
 
-      // Draw Obstacles
-       ctx.fillStyle = "green";
-       obstacles.forEach((obstacle) => {
-         ctx.fillRect(obstacle.x, 0, obstacleWidth, obstacle.height);
-         ctx.fillRect(
-           obstacle.x,
-           obstacle.height + obstacleGap,
-           obstacleWidth,
-           canvas.height - obstacle.height - obstacleGap
-         );
-       });
- 
+        ctx.fillStyle = "green";
+        obstacles.forEach((obstacle) => {
+          ctx.fillRect(obstacle.x, 0, obstacleWidth, obstacle.height);
+          ctx.fillRect(
+            obstacle.x,
+            canvas.height - obstacle.height,
+            obstacleWidth,
+            canvas.height - obstacle.height
+          );
+        });
 
       // Update Bird Position
       setVelocity(velocity + gravity);
       setBirdY(birdY + velocity);
 
-      // Update Obstacles
-      setObstacles((prevObstacles) =>
-        prevObstacles.map((obstacle) => ({
-          x: obstacle.x - obstacleSpeed,
-          height: obstacle.height,
-          passed: obstacle.passed,
-        }))
-      );
-
-      // Generate New Obstacles
-      if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvas.width - 300) {
-        const minObstacleHeight = 50;
-        const maxObstacleHeight = canvas.height - obstacleGap - minObstacleHeight;
-        const randomObstacleHeight =
-          minObstacleHeight +
-          Math.random() * (maxObstacleHeight - minObstacleHeight);
-        setObstacles((prevObstacles) => [
-          ...prevObstacles,
-          { x: canvas.width, height: randomObstacleHeight, passed: false },
-        ]);
+      // Keep bird within bounds
+      if (birdY < 0) {
+        setBirdY(0);
+        setVelocity(0);
       }
+      if (birdY > canvas.height - birdHeight) {
+        setGameOver(true);
+        setBirdY(canvas.height - birdHeight);
+         setVelocity(0);
+      }
+
+      // Update Obstacles
+      setObstacles((prevObstacles) => {
+        const updatedObstacles = prevObstacles.map((obstacle) => ({
+          ...obstacle,
+          x: obstacle.x - obstacleSpeed,
+        }));
+
+        // Remove passed obstacles
+        const visibleObstacles = updatedObstacles.filter(
+          (obstacle) => obstacle.x + obstacleWidth > 0
+        );
+
+        // Add new obstacle if needed
+        if (visibleObstacles.length === 0 || visibleObstacles[visibleObstacles.length - 1].x < canvas.width - 300) {
+          const height = Math.floor(Math.random() * (canvas.height / 2)) + 50;
+          visibleObstacles.push({ x: canvas.width, height, passed: false });
+        }
+
+        return visibleObstacles;
+      });
 
       // Collision Detection
       obstacles.forEach((obstacle) => {
         if (
           birdX < obstacle.x + obstacleWidth &&
-          birdX + 20 > obstacle.x &&
-          (birdY < obstacle.height || birdY + 20 > obstacle.height + obstacleGap)
+          birdX + birdWidth > obstacle.x &&
+          (birdY < obstacle.height || birdY + birdHeight > obstacle.height + obstacleGap)
         ) {
           setGameOver(true);
         }
       });
 
-      // Game Over Condition
-      if (birdY > canvas.height || birdY < 0) {
-        setGameOver(true);
-      }
-
-      // Remove passed obstacles
-      setObstacles((prevObstacles) =>
-        prevObstacles.filter((obstacle) => obstacle.x + obstacleWidth > 0)
-      );
-
       // Update Score
-      setObstacles((prevObstacles) => {
-        let newScore = score;
-        const updatedObstacles = prevObstacles.map((obstacle) => {
-          if (birdX > obstacle.x + obstacleWidth && !obstacle.passed) {
-            newScore += 1;
-            return { ...obstacle, passed: true };
-          }
-          return obstacle;
-        });
-        if (newScore !== score) {
-          setScore(newScore);
-        }
-        return updatedObstacles;
-      });
+       if (ctx) {
+         setObstacles((prevObstacles) => {
+           let newScore = score;
+           const updatedObstacles = prevObstacles.map((obstacle) => {
+             if (birdX > obstacle.x + obstacleWidth && !obstacle.passed) {
+               newScore += 1;
+               return { ...obstacle, passed: true };
+             }
+             return obstacle;
+           });
+           setScore(newScore);
+           return updatedObstacles;
+         });
+       }
 
-      if (!gameOver) {
-        animationFrameId = requestAnimationFrame(updateGame);
-      }
+      animationFrameId = requestAnimationFrame(updateGame);
     };
 
     const handleJump = () => {
+      // Set the bird's velocity to jumpStrength
       setVelocity(jumpStrength);
+
+      // Trigger bird flap animation
+      setFlapFrame(0);
+      setTimeout(() => setFlapFrame(1), 50); // Quick mid-flap
     };
 
-    if (canvas) {
-      canvas.addEventListener("click", handleJump);
-     }
-
-    if (!gameOver) {
-      animationFrameId = requestAnimationFrame(updateGame);
+    if (gameInitialized && !gameOver) {
+      updateGame();
     }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === " " || event.key === "ArrowUp") {
+        handleJump();
+      }
+    };
+
+    const handleMouseDown = () => {
+      handleJump();
+    };
+
+    canvas.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      if (canvas) {
-        canvas.removeEventListener("click", handleJump);
-      }
+      window.removeEventListener("resize", resizeCanvas);
+      document.removeEventListener("keydown", handleKeyDown);
+      canvas.removeEventListener("mousedown", handleMouseDown);
       cancelAnimationFrame(animationFrameId);
-    };
-  }, [gameOver, gameInitialized, velocity, birdY, obstacles, score, jumpStrength, gravity, birdX, obstacleWidth]);
+     };
+   }, [gameOver]);
+
+
+  useEffect(() => {
+    setGameInitialized(true);
+  }, []);
 
   const resetGame = () => {
-    setBirdY(200);
-    setVelocity(0);
-    setObstacles([]);
-    setScore(0);
-    setGameOver(false);
-
-    // Start generating new obstacles immediately after reset
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const minObstacleHeight = 50;
-      const maxObstacleHeight = canvas.height - obstacleGap - minObstacleHeight;
-      const randomObstacleHeight =
-        minObstacleHeight +
-        Math.random() * (maxObstacleHeight - minObstacleHeight);
-      setObstacles([{ x: canvas.width, height: randomObstacleHeight, passed: false }]);
-    }
-  };
+     setBirdY(200);
+     setVelocity(0);
+     setObstacles([]);
+     setScore(0);
+     setGameOver(false);
+     setGameInitialized(true);
+   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen py-2">
-      <main className="flex flex-col items-center justify-center w-full flex-1 px-20 text-center">
-        <h1 className="text-6xl font-bold text-primary">Single Player Mode</h1>
-        <canvas
-          ref={canvasRef}
-          width={canvasWidth}
-          height={canvasHeight}
-          className="border-2 border-black"
-        ></canvas>
-        <div className="text-2xl font-bold text-primary">Score: {score}</div>
-        {gameOver && (
-          <div>
-            <h2 className="text-3xl font-bold text-red-500">Game Over!</h2>
-            <Button className="mt-4" onClick={resetGame}>
-              Play Again
-            </Button>
-          </div>
-        )}
-      </main>
-    </div>
+    
+      
+        
+          { 'Single Player'}
+        
+        
+          
+          
+          
+          
+          
+        
+        
+          
+            {canvasWidth}x{canvasHeight}
+            Tap or Press Space to Flap!
+            
+              
+                Tap to Play!
+              
+            
+          
+          
+            
+              
+                Game Over!
+                
+                  Score: {score}
+                
+                
+                  Play Again
+                
+              
+            
+          
+        
+      
+    
   );
 }
