@@ -34,7 +34,10 @@ export default function SinglePlayerPage() {
     const canvas = canvasRef.current;
     setBirdY(canvas.height * initialBirdYRatio);
     setVelocity(0);
-    setObstacles([]);
+    setObstacles([
+      generateObstacle(),
+      generateObstacle(),
+    ]);
     setScore(0);
     setGameOver(false);
   };
@@ -51,28 +54,24 @@ export default function SinglePlayerPage() {
   };
 
   const initializeGame = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+     const canvas = canvasRef.current;
+     if (!canvas) return;
 
-    canvas.width = window.innerWidth * 0.8; // Set width to 80% of screen width
-    canvas.height = window.innerHeight * 0.6; // Set height to 60% of screen height
-    setCanvasWidth(canvas.width);
-    setCanvasHeight(canvas.height);
+     canvas.width = 600; // Set width to 600
+     canvas.height = 400; // Set height to 400
+     setCanvasWidth(canvas.width);
+     setCanvasHeight(canvas.height);
 
-    resetGame();
-    setObstacles([
-      generateObstacle(),
-      generateObstacle(),
-    ]);
-    setGameInitialized(true);
-  };
+     resetGame();
+     setGameInitialized(true);
+   };
 
   useEffect(() => {
      const handleResize = () => {
        if (!canvasRef.current) return;
        const canvas = canvasRef.current;
-       canvas.width = window.innerWidth * 0.8;
-       canvas.height = window.innerHeight * 0.6;
+       canvas.width = 600;
+       canvas.height = 400;
        setCanvasWidth(canvas.width);
        setCanvasHeight(canvas.height);
        resetGame();
@@ -153,7 +152,7 @@ export default function SinglePlayerPage() {
       // Check for game over (bird hitting top or bottom)
       if (birdY < 0 || birdY + birdSize > canvas.height) {
         setGameOver(true);
-      }
+       }
 
       // Display score
       ctx.fillStyle = "black";
@@ -201,7 +200,7 @@ export default function SinglePlayerPage() {
       });
       cancelAnimationFrame(animationFrameId);
     };
-  }, [gameInitialized, canvasWidth, canvasHeight, obstacles, birdY, score, gameOver]);
+   }, [gameInitialized, canvasWidth, canvasHeight, obstacles, birdY, score, gameOver]);
 
   const handleCanvasClick = () => {
     setVelocity(jumpVelocity);
@@ -217,7 +216,10 @@ export default function SinglePlayerPage() {
           onClick={handleCanvasClick}
         ></canvas>
         {gameOver && (
-          <button className="mt-4 bg-primary text-white rounded px-4 py-2" onClick={resetGame}>
+          <button className="mt-4 bg-primary text-white rounded px-4 py-2" onClick={() => {
+             setGameInitialized(false); // Re-initialize the game
+             resetGame();
+           }}>
             Play Again
           </button>
         )}
