@@ -1,7 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { useEffect, useRef, useState } from "react";
+import {Button} from "@/components/ui/button";
+import {useEffect, useRef, useState} from "react";
 
 export default function SinglePlayerPage() {
   const [birdY, setBirdY] = useState(200);
@@ -25,9 +25,9 @@ export default function SinglePlayerPage() {
   const birdWidth = 34;
   const birdHeight = 24;
 
-  // Bird animation state
-  const [flapFrame, setFlapFrame] = useState(0); // 0: down, 1: mid, 2: up
-  const flapFrames = 3;
+  const birdColor = "yellow";
+  const obstacleColor = "green";
+  const scoreColor = "coral";
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -52,7 +52,7 @@ export default function SinglePlayerPage() {
     const drawBird = (x: number, y: number) => {
       if (!ctx) return;
 
-      ctx.fillStyle = "yellow"; // Bird color
+      ctx.fillStyle = birdColor; // Bird color
 
       // Bird body
       ctx.beginPath();
@@ -91,6 +91,18 @@ export default function SinglePlayerPage() {
       ctx.fill();
     };
 
+    const drawObstacle = (x: number, height: number) => {
+      if (!ctx) return;
+      ctx.fillStyle = obstacleColor;
+      ctx.fillRect(x, 0, obstacleWidth, height);
+      ctx.fillRect(
+        x,
+        canvas.height - height,
+        obstacleWidth,
+        canvas.height - height
+      );
+    };
+
     const updateGame = () => {
       if (gameOver) return;
       // Clear canvas
@@ -98,15 +110,8 @@ export default function SinglePlayerPage() {
 
       drawBird(birdX, birdY);
 
-      ctx.fillStyle = "green";
       obstacles.forEach(obstacle => {
-        ctx.fillRect(obstacle.x, 0, obstacleWidth, obstacle.height);
-        ctx.fillRect(
-          obstacle.x,
-          canvas.height - obstacle.height,
-          obstacleWidth,
-          canvas.height - obstacle.height
-        );
+        drawObstacle(obstacle.x, obstacle.height);
       });
 
       // Update Bird Position
@@ -174,11 +179,11 @@ export default function SinglePlayerPage() {
           setScore(newScore);
           return updatedObstacles;
         });
-        ctx.fillStyle = "coral";
+        ctx.fillStyle = scoreColor;
         ctx.font = "20px Arial";
         ctx.fillText(`Score: ${score}`, 10, canvasHeight - 20);
       }
-       animationFrameId = requestAnimationFrame(updateGame);
+      animationFrameId = requestAnimationFrame(updateGame);
     };
 
     const handleJump = () => {
@@ -206,15 +211,15 @@ export default function SinglePlayerPage() {
       window.removeEventListener("resize", resizeCanvas);
       document.removeEventListener("keydown", handleKeyDown);
       canvas.removeEventListener("mousedown", handleMouseDown);
-       cancelAnimationFrame(animationFrameId);
+      cancelAnimationFrame(animationFrameId);
     };
   }, [gameOver]);
 
   useEffect(() => {
     if (gameInitialized) {
-    resetGame();
+      resetGame();
     }
-  setGameInitialized(true);
+    setGameInitialized(true);
   }, []);
 
   const resetGame = () => {
@@ -229,10 +234,10 @@ export default function SinglePlayerPage() {
   return (
     
       
-        {"Single Player"}
+        Single Player
       
       
-        {`${canvasWidth}x${canvasHeight}`}
+        {canvasWidth}x{canvasHeight}
         Tap or Press Space to Flap!
         
           
