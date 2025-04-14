@@ -162,8 +162,8 @@ export default function SinglePlayerPage() {
         });
        setBirdFrame((birdFrame + 1) % birdFrames.length);
        animationFrameId = requestAnimationFrame(updateGame);
-      }
-    };
+       }
+     };
  
      const handleJump = () => {
        setVelocity(jumpStrength);
@@ -241,3 +241,4 @@ export default function SinglePlayerPage() {
    );
  }
 "
+
