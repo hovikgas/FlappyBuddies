@@ -29,9 +29,7 @@ export default function SinglePlayerPage() {
   const obstacleGap = 200;
   const birdX = 50;
 
-  const birdWidth = 34;
-  const birdHeight = 24;
-
+  const birdSize = 20;
   const birdColor = "coral"; // Coral color for the bird
   const obstacleColor = "green";
   const scoreColor = "coral";
@@ -59,7 +57,9 @@ export default function SinglePlayerPage() {
     const drawBird = (x: number, y: number) => {
       if (!ctx) return;
       ctx.fillStyle = birdColor;
-      ctx.fillRect(x - birdWidth / 2, y - birdHeight / 2, birdWidth, birdHeight);
+      ctx.beginPath();
+      ctx.arc(x, y, birdSize / 2, 0, 2 * Math.PI);
+      ctx.fill();
     };
 
     const drawObstacle = (x: number, height: number) => {
@@ -91,14 +91,14 @@ export default function SinglePlayerPage() {
       setBirdY(birdY + velocity);
 
       // Keep bird within bounds
-      if (birdY < birdHeight / 2) {
-        setBirdY(birdHeight / 2);
+      if (birdY < birdSize / 2) {
+        setBirdY(birdSize / 2);
         setVelocity(0);
       }
-      if (birdY > canvas.height - birdHeight / 2) {
+      if (birdY > canvas.height - birdSize / 2) {
         setGameOver(true);
-        setBirdY(canvas.height - birdHeight / 2);
-         setVelocity(0);
+        setBirdY(canvas.height - birdSize / 2);
+        setVelocity(0);
       }
 
       // Update Obstacles
@@ -126,17 +126,17 @@ export default function SinglePlayerPage() {
       });
 
       // Collision Detection
-       obstacles.forEach(obstacle => {
-         if (!ctx) return;
-        if (
-          birdX + birdWidth / 2 > obstacle.x &&
-          birdX - birdWidth / 2 < obstacle.x + obstacleWidth &&
-          (birdY - birdHeight / 2 < obstacle.height ||
-            birdY + birdHeight / 2 > obstacle.height + obstacleGap)
-        ) {
-          setGameOver(true);
-        }
-      });
+        obstacles.forEach(obstacle => {
+          if (!ctx) return;
+         if (
+           birdX + birdSize / 2 > obstacle.x &&
+           birdX - birdSize / 2 < obstacle.x + obstacleWidth &&
+           (birdY - birdSize / 2 < obstacle.height ||
+             birdY + birdSize / 2 > obstacle.height + obstacleGap)
+         ) {
+           setGameOver(true);
+         }
+       });
 
       // Update Score
       setObstacles(prevObstacles => {
@@ -149,16 +149,16 @@ export default function SinglePlayerPage() {
           return obstacle;
         });
         setScore(newScore);
-          if (ctx) {
-          ctx.fillStyle = scoreColor;
-          ctx.font = "20px Arial";
-          ctx.fillText(`Score: ${newScore}`, 10, canvasHeight - 20);
-        }
+           if (ctx) {
+            ctx.fillStyle = scoreColor;
+            ctx.font = "20px Arial";
+            ctx.fillText(`Score: ${newScore}`, 10, canvasHeight - 20);
+          }
         return updatedObstacles;
       });
 
       animationFrameId = requestAnimationFrame(updateGame);
-     };
+      };
 
     const handleJump = () => {
       setVelocity(jumpStrength);
@@ -187,7 +187,7 @@ export default function SinglePlayerPage() {
       canvas.removeEventListener("mousedown", handleMouseDown);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [gameOver]);
+  }, [gameOver, canvasWidth, canvasHeight, birdColor, obstacleColor, scoreColor, birdSize, birdX, obstacleSpeed, obstacleWidth, obstacleGap, jumpStrength, gravity, birdY, velocity, score, obstacles, gameInitialized]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -219,10 +219,10 @@ export default function SinglePlayerPage() {
   return (
     
       
-        {"Single Player"}
+        Single Player
       
       
-        Tap or Press Space to Flap!
+        {`Tap or Press Space to Flap!`}
         
           
             
