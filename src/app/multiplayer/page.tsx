@@ -25,7 +25,14 @@ export default function MultiplayerPage() {
     setIsJoiningLobby(true);
     setTimeout(() => {
       if (lobbyId) {
-        setLobbyDetails(`Joining lobby with ID: ${lobbyId}`);
+        // Simulate checking if the lobby exists (replace with actual logic)
+        const lobbyExists = true; // Replace with your actual check
+
+        if (lobbyExists) {
+          setLobbyDetails(`Successfully joined lobby with ID: ${lobbyId}`);
+        } else {
+          setLobbyDetails(`Lobby with ID: ${lobbyId} not found.`);
+        }
         setIsJoiningLobby(false);
       } else {
         setLobbyDetails("Lobby ID is required to join.");
