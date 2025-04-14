@@ -1,19 +1,13 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { useEffect, useRef, useState } from "react";
-
-// Import bird images
-import birdDownFlap from "../../public/images/bird-down-flap.png";
-import birdMidFlap from "../../public/images/bird-mid-flap.png";
-import birdUpFlap from "../../public/images/bird-up-flap.png";
-import Image from "next/image";
+import {Button} from "@/components/ui/button";
+import {useEffect, useRef, useState} from "react";
 
 export default function SinglePlayerPage() {
   const [birdY, setBirdY] = useState(200);
   const [velocity, setVelocity] = useState(0);
   const [obstacles, setObstacles] = useState<
-    { x: number; height: number; passed: boolean }[]
+    {x: number; height: number; passed: boolean}[]
   >([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
@@ -31,9 +25,8 @@ export default function SinglePlayerPage() {
   const birdWidth = 34;
   const birdHeight = 24;
 
-  // Bird animation state
-  const [flapFrame, setFlapFrame] = useState(0);
-  const birdFrames = [birdDownFlap, birdMidFlap, birdUpFlap];
+  const [flapFrame, setFlapFrame] = useState(0); // 0: down, 1: mid, 2: up
+  const flapFrames = 3;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -55,25 +48,67 @@ export default function SinglePlayerPage() {
 
     let animationFrameId: number;
 
+    const drawBird = (x: number, y: number, frame: number) => {
+      if (!ctx) return;
+
+      ctx.fillStyle = "yellow"; // Bird color
+
+      // Bird body
+      ctx.beginPath();
+      ctx.ellipse(
+        x + birdWidth / 2,
+        y + birdHeight / 2,
+        birdWidth / 2,
+        birdHeight / 3,
+        0,
+        0,
+        2 * Math.PI
+      );
+      ctx.fill();
+      ctx.closePath();
+
+      // Eye
+      ctx.fillStyle = "black";
+      ctx.beginPath();
+      ctx.arc(
+        x + birdWidth / 3,
+        y + birdHeight / 4,
+        birdHeight / 8,
+        0,
+        2 * Math.PI
+      );
+      ctx.fill();
+      ctx.closePath();
+
+      // Beak
+      ctx.fillStyle = "orange";
+      ctx.beginPath();
+      if (frame === 0) {
+        ctx.moveTo(x + birdWidth, y + birdHeight / 2);
+        ctx.lineTo(x + birdWidth + 10, y + birdHeight / 4);
+        ctx.lineTo(x + birdWidth + 10, y + birdHeight * 3 / 4);
+      } else if (frame === 2) {
+        ctx.moveTo(x + birdWidth, y + birdHeight / 2);
+        ctx.lineTo(x + birdWidth + 10, y + birdHeight * 3 / 4);
+        ctx.lineTo(x + birdWidth + 10, y + birdHeight / 4);
+      } else {
+        ctx.moveTo(x + birdWidth, y + birdHeight / 2);
+        ctx.lineTo(x + birdWidth + 8, y + birdHeight / 4);
+        ctx.lineTo(x + birdWidth + 8, y + birdHeight * 3 / 4);
+      }
+      ctx.closePath();
+      ctx.fill();
+    };
+
     const updateGame = () => {
       if (gameOver) return;
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw Bird
-      const currentBirdFrame = birdFrames[flapFrame];
-      if (currentBirdFrame) {
-        ctx.drawImage(
-          currentBirdFrame.src,
-          birdX,
-          birdY,
-          birdWidth,
-          birdHeight
-        );
-      }
+      drawBird(birdX, birdY, flapFrame);
 
       ctx.fillStyle = "green";
-      obstacles.forEach((obstacle) => {
+      obstacles.forEach(obstacle => {
         ctx.fillRect(obstacle.x, 0, obstacleWidth, obstacle.height);
         ctx.fillRect(
           obstacle.x,
@@ -99,68 +134,70 @@ export default function SinglePlayerPage() {
       }
 
       // Update Obstacles
-      setObstacles((prevObstacles) => {
-        const updatedObstacles = prevObstacles.map((obstacle) => ({
+      setObstacles(prevObstacles => {
+        const updatedObstacles = prevObstacles.map(obstacle => ({
           ...obstacle,
           x: obstacle.x - obstacleSpeed,
         }));
 
         // Remove passed obstacles
         const visibleObstacles = updatedObstacles.filter(
-          (obstacle) => obstacle.x + obstacleWidth > 0
+          obstacle => obstacle.x + obstacleWidth > 0
         );
 
         // Add new obstacle if needed
-        if (visibleObstacles.length === 0 || visibleObstacles[visibleObstacles.length - 1].x < canvas.width - 300) {
+        if (
+          visibleObstacles.length === 0 ||
+          visibleObstacles[visibleObstacles.length - 1].x < canvas.width - 300
+        ) {
           const height = Math.floor(Math.random() * (canvas.height / 2)) + 50;
-          visibleObstacles.push({ x: canvas.width, height, passed: false });
+          visibleObstacles.push({x: canvas.width, height, passed: false});
         }
 
         return visibleObstacles;
       });
 
       // Collision Detection
-      obstacles.forEach((obstacle) => {
+      obstacles.forEach(obstacle => {
         if (
           birdX < obstacle.x + obstacleWidth &&
           birdX + birdWidth > obstacle.x &&
-          (birdY < obstacle.height || birdY + birdHeight > obstacle.height + obstacleGap)
+          (birdY < obstacle.height ||
+            birdY + birdHeight > obstacle.height + obstacleGap)
         ) {
           setGameOver(true);
         }
       });
 
       // Update Score
-       if (ctx) {
-           setObstacles((prevObstacles) => {
-               let newScore = score;
-               const updatedObstacles = prevObstacles.map((obstacle) => {
-                   if (birdX > obstacle.x + obstacleWidth && !obstacle.passed) {
-                       newScore += 1;
-                       return { ...obstacle, passed: true };
-                   }
-                   return obstacle;
-               });
-               setScore(newScore);
-               return updatedObstacles;
-           });
-           ctx.fillStyle = "coral";
-           ctx.font = "20px Arial";
-           ctx.fillText(`Score: ${score}`, 10, canvasHeight - 20);
-       }
+      if (ctx) {
+        setObstacles(prevObstacles => {
+          let newScore = score;
+          const updatedObstacles = prevObstacles.map(obstacle => {
+            if (birdX > obstacle.x + obstacleWidth && !obstacle.passed) {
+              newScore += 1;
+              return {...obstacle, passed: true};
+            }
+            return obstacle;
+          });
+          setScore(newScore);
+          return updatedObstacles;
+        });
+        ctx.fillStyle = "coral";
+        ctx.font = "20px Arial";
+        ctx.fillText(`Score: ${score}`, 10, canvasHeight - 20);
+      }
+
+      // Cycle Flap Animation
+      setFlapFrame(prevFrame => (prevFrame + 1) % flapFrames);
     };
 
     const handleJump = () => {
-      // Set the bird's velocity to jumpStrength
       setVelocity(jumpStrength);
-
-      // Trigger bird flap animation
-      setFlapFrame(0);
-      setTimeout(() => setFlapFrame(1), 50); // Quick mid-flap
     };
 
     if (gameInitialized && !gameOver) {
-      updateGame();
+      animationFrameId = requestAnimationFrame(updateGame);
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -182,7 +219,23 @@ export default function SinglePlayerPage() {
       canvas.removeEventListener("mousedown", handleMouseDown);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [gameOver, canvasHeight, canvasWidth, birdFrames, birdX, birdY, birdWidth, birdHeight, gravity, jumpStrength, obstacleWidth, obstacleGap, obstacleSpeed, score, obstacles]);
+  }, [
+    gameOver,
+    canvasHeight,
+    canvasWidth,
+    birdX,
+    birdY,
+    birdWidth,
+    birdHeight,
+    gravity,
+    jumpStrength,
+    obstacleWidth,
+    obstacleGap,
+    obstacleSpeed,
+    score,
+    obstacles,
+    flapFrames,
+  ]);
 
   useEffect(() => {
     setGameInitialized(true);
@@ -193,17 +246,17 @@ export default function SinglePlayerPage() {
     setVelocity(0);
     setObstacles([]);
     setScore(0);
-     setGameOver(false);
-     setGameInitialized(true);
+    setGameOver(false);
+    setGameInitialized(true);
 
-     if (canvasRef.current) {
-         const canvas = canvasRef.current;
-         const ctx = canvas.getContext("2d");
-         if (ctx) {
-             ctx.clearRect(0, 0, canvas.width, canvas.height);
-         }
-     }
- };
+    if (canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+  };
 
   return (
     <>
@@ -212,7 +265,6 @@ export default function SinglePlayerPage() {
           Single Player
         
         
-          
           {canvasWidth}x{canvasHeight}
           Tap or Press Space to Flap!
           
