@@ -12,7 +12,7 @@ interface Obstacle {
 export default function SinglePlayerPage() {
   const [birdY, setBirdY] = useState(200);
   const [velocity, setVelocity] = useState(0);
-  const [obstacles, setObstacles,]([]);
+  const [obstacles, setObstacles,] = useState([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [canvasWidth, setCanvasWidth] = useState(0);
@@ -27,11 +27,19 @@ export default function SinglePlayerPage() {
   const obstacleGap = 200;
   const birdX = 50;
 
-  const birdColor = "yellow";
+  const birdWidth = 34;
+  const birdHeight = 24;
+
+   // Bird animation state
+  const [birdFrame, setBirdFrame] = useState(0);
+  const birdFrames = [
+    "#e6e600", // Yellow
+    "#ffff33", // Light Yellow
+    "#e6e600", // Yellow
+  ];
+
   const obstacleColor = "green";
   const scoreColor = "coral";
-
-  const birdRadius = 12;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -54,12 +62,10 @@ export default function SinglePlayerPage() {
     let animationFrameId: number;
 
     const drawBird = (x: number, y: number) => {
-      if (!ctx) return;
-      ctx.fillStyle = birdColor;
-      ctx.beginPath();
-      ctx.arc(x, y, birdRadius, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.closePath();
+        if (!ctx) return;
+        const birdColor = birdFrames[birdFrame];
+        ctx.fillStyle = birdColor;
+        ctx.fillRect(x - birdWidth / 2, y - birdHeight / 2, birdWidth, birdHeight);
     };
 
     const drawObstacle = (x: number, height: number) => {
@@ -90,13 +96,13 @@ export default function SinglePlayerPage() {
       setBirdY(birdY + velocity);
 
       // Keep bird within bounds
-      if (birdY < birdRadius) {
-        setBirdY(birdRadius);
+      if (birdY < birdHeight / 2) {
+        setBirdY(birdHeight / 2);
         setVelocity(0);
       }
-      if (birdY > canvas.height - birdRadius) {
+      if (birdY > canvas.height - birdHeight / 2) {
         setGameOver(true);
-        setBirdY(canvas.height - birdRadius);
+        setBirdY(canvas.height - birdHeight / 2);
         setVelocity(0);
       }
 
@@ -127,17 +133,16 @@ export default function SinglePlayerPage() {
       // Collision Detection
       obstacles.forEach(obstacle => {
         if (
-          birdX + birdRadius > obstacle.x &&
-          birdX - birdRadius < obstacle.x + obstacleWidth &&
-          (birdY - birdRadius < obstacle.height ||
-            birdY + birdRadius > obstacle.height + obstacleGap)
+          birdX + birdWidth / 2 > obstacle.x &&
+          birdX - birdWidth / 2 < obstacle.x + obstacleWidth &&
+          (birdY - birdHeight / 2 < obstacle.height ||
+            birdY + birdHeight / 2 > obstacle.height + obstacleGap)
         ) {
           setGameOver(true);
         }
       });
 
-      // Update Score
-      if (ctx) {
+       // Update Score
         setObstacles(prevObstacles => {
           let newScore = score;
           const updatedObstacles = prevObstacles.map(obstacle => {
@@ -148,10 +153,14 @@ export default function SinglePlayerPage() {
             return obstacle;
           });
           setScore(newScore);
-         ctx.fillStyle = scoreColor;
-         ctx.font = "20px Arial";
-         ctx.fillText(`Score: ${score}`, 10, canvasHeight - 20);
+         if (ctx) {
+           ctx.fillStyle = scoreColor;
+           ctx.font = "20px Arial";
+           ctx.fillText(`Score: ${newScore}`, 10, canvasHeight - 20);
+         }
+          return updatedObstacles;
         });
+       setBirdFrame((birdFrame + 1) % birdFrames.length);
        animationFrameId = requestAnimationFrame(updateGame);
       }
     };
@@ -183,7 +192,7 @@ export default function SinglePlayerPage() {
        canvas.removeEventListener("mousedown", handleMouseDown);
        cancelAnimationFrame(animationFrameId);
      };
-   }, [gameOver]);
+   }, [gameOver, birdFrame]);
  
    useEffect(() => {
      if (gameInitialized) {
@@ -196,7 +205,7 @@ export default function SinglePlayerPage() {
      setBirdY(200);
      setVelocity(0);
      setObstacles([]);
-      setScore(0);
+     setScore(0);
      setGameOver(false);
      setGameInitialized(true);
    };
@@ -231,3 +240,4 @@ export default function SinglePlayerPage() {
      
    );
  }
+"
