@@ -12,7 +12,7 @@ interface Obstacle {
 export default function SinglePlayerPage() {
   const [birdY, setBirdY] = useState(200);
   const [velocity, setVelocity] = useState(0);
-  const [obstacles, setObstacles: Obstacle[]>([]);
+  const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [canvasWidth, setCanvasWidth] = useState(0);
@@ -250,4 +250,3 @@ export default function SinglePlayerPage() {
     
   );
 }
-
