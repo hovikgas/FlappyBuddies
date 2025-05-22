@@ -56,12 +56,18 @@ const MAX_PLAYERS_PER_LOBBY = 2;
 const httpServer: HTTPServer = createServer();
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: ["http://localhost:9002", "http://localhost:3000"],
-    methods: ["GET", "POST"]
+    origin: "http://localhost:9002", // Assuming Next.js runs on 9002
+    methods: ["GET", "POST"],
+    credentials: true // Often needed
   }
 });
 
 const PORT = process.env.SOCKET_PORT || 3001;
+
+// Add an error listener to the httpServer itself
+httpServer.on('error', (error) => { 
+  console.error('HTTP Server Error:', error); 
+});
 
 // --- Utility Functions ---
 function generateUniqueLobbyId(): string {
@@ -246,7 +252,7 @@ function startGameLoop(lobbyId: string) {
 
 // --- Socket Event Handlers (largely unchanged, ensure initializePlayer is used) ---
 io.on('connection', (socket: Socket) => {
-  console.log(`A user connected: ${socket.id}`);
+  console.log(`New client connected: ${socket.id} from ${socket.handshake.address}`);
   socket.data.lobbyId = null;
 
   socket.on('createLobby', () => {
@@ -350,8 +356,9 @@ io.on('connection', (socket: Socket) => {
   });
 });
 
+console.log(`Socket.IO server attempting to listen on port ${PORT}`);
 httpServer.listen(PORT, () => {
-  console.log(`Socket.IO server with Flappy Bird (collision & scoring) listening on port ${PORT}`);
+  console.log(`Socket.IO server listening on port ${PORT}`);
 });
 
 export { io, httpServer };
