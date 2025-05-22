@@ -78,7 +78,7 @@ export default function MultiplayerPage() {
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      setLocalPlayerId(newSocket.id);
+      setLocalPlayerId(newSocket.id || null);
       setLobbyMessage("Connected. Ready to create/join lobby.");
     });
 
@@ -87,8 +87,21 @@ export default function MultiplayerPage() {
       setIsGameActive(false); setCurrentLobbyDetails(null); setPlayers({}); setObstacles([]);
     });
 
-    newSocket.on('connect_error', (err) => {
-      setLobbyMessage(`Connection Failed: ${err.message}. Ensure server is running.`);
+    newSocket.on('connect_error', (err: any) => { // Add 'any' type for err.data if not typed by socket.io-client
+      console.error('Socket connection error:', err);
+      console.error('Error type:', err.constructor.name); // e.g., Error, TypeError
+      console.error('Error message:', err.message);
+      if (err.data) { // Additional context often in err.data
+        console.error('Error data:', err.data);
+      }
+      setLobbyMessage(`Connection Failed: ${err.message}. Ensure server is running & check console.`);
+      setIsCreatingLobby(false); // Reset loading states
+      setIsJoiningLobby(false);
+    });
+
+    newSocket.on('error', (err: any) => { // Add 'any' type for err.data if not typed by socket.io-client
+      console.error('Socket general error:', err);
+      setLobbyMessage(`Socket Error: ${err.message}. Check console.`);
     });
 
     // Lobby events
@@ -178,9 +191,9 @@ export default function MultiplayerPage() {
     return () => {
       newSocket.disconnect();
       // Remove all specific listeners by not listing them individually, or list all
-      newSocket.offAny(); 
+      newSocket.offAny();
     };
-  }, []); 
+  }, []);
 
   useEffect(() => {
     if (isGameActive && canvasRef.current && currentLobbyDetails) {
