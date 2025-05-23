@@ -54,9 +54,25 @@ const lobbies: Record<string, Lobby> = {};
 const MAX_PLAYERS_PER_LOBBY = 2;
 
 const httpServer: HTTPServer = createServer();
+
+// Define allowed origins for CORS
+const allowedOrigins: string[] = [];
+if (process.env.CORS_ORIGIN_PRODUCTION) {
+  allowedOrigins.push(process.env.CORS_ORIGIN_PRODUCTION);
+}
+if (process.env.CORS_ORIGIN_DEVELOPMENT) {
+  allowedOrigins.push(process.env.CORS_ORIGIN_DEVELOPMENT);
+}
+
+// If no environment variables are set, use default development origins
+if (allowedOrigins.length === 0) {
+  allowedOrigins.push('http://localhost:3000');
+  allowedOrigins.push('http://localhost:9002'); // Default for current setup
+}
+
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: "http://localhost:9002", // Assuming Next.js runs on 9002
+    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true // Often needed
   }

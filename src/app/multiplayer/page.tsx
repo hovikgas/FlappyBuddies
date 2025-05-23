@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { useEffect, useState, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 
+// Define the Socket.IO server URL using an environment variable or a default value
+const socketServerUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || 'http://localhost:3001';
+
 // --- Interfaces (matching server-side structures) ---
 interface PlayerFromServer {
   id: string;
@@ -74,7 +77,7 @@ export default function MultiplayerPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    const newSocket = io('http://localhost:3001');
+    const newSocket = io(socketServerUrl);
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
