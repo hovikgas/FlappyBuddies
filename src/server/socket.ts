@@ -3,9 +3,9 @@ import { createServer, Server as HTTPServer } from 'http';
 import { v4 as uuidv4 } from 'uuid';
 
 // --- Game Constants ---
-const GRAVITY = 0.5;
-const JUMP_STRENGTH = -8;
-const GAME_UPDATE_INTERVAL = 50; // ms
+const GRAVITY = 0.25; // Adjusted to match single-player
+const JUMP_STRENGTH = -7; // Adjusted to match single-player
+const GAME_UPDATE_INTERVAL = 16; // ms - Reduced to ~60 FPS for smoother gameplay
 const BIRD_START_Y = 250;
 const GAME_AREA_HEIGHT = 500;
 const TOP_BOUNDARY = 0;
@@ -20,14 +20,15 @@ const BIRD_HEIGHT = 24; // Height of the bird
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = GAME_AREA_HEIGHT;
 const OBSTACLE_WIDTH = 50;
-const OBSTACLE_GAP_SIZE = 150;
-const OBSTACLE_SPEED = 2.5;
-const OBSTACLE_GENERATION_INTERVAL_X = 250;
+const OBSTACLE_GAP_SIZE = 200; // Increased to match singleplayer
+const OBSTACLE_SPEED = 3; // Increased to match singleplayer
+const OBSTACLE_GENERATION_INTERVAL_X = 300; // Adjusted to match singleplayer
 const MIN_PIPE_HEIGHT = 50;
 
 // --- Interfaces and Data Structures ---
 interface Player {
-  id: string;
+  id: string; // This is socket.id
+  customName?: string; // Added for custom player names
   birdY: number;
   velocity: number;
   score: number;
@@ -56,13 +57,13 @@ const MAX_PLAYERS_PER_LOBBY = 2;
 const httpServer: HTTPServer = createServer();
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: "http://localhost:9002", // Assuming Next.js runs on 9002
+    origin: "*", // Allow connections from any origin
     methods: ["GET", "POST"],
     credentials: true // Often needed
   }
 });
 
-const PORT = process.env.SOCKET_PORT || 3001;
+const PORT = process.env.SOCKET_PORT ? parseInt(process.env.SOCKET_PORT, 10) : 3001;
 
 // Add an error listener to the httpServer itself
 httpServer.on('error', (error) => { 
@@ -106,9 +107,10 @@ function getLobbyState(lobbyId: string): Lobby | null {
   }
 }
 
-function initializePlayer(id: string): Player {
+function initializePlayer(id: string, customName?: string): Player {
   return {
     id,
+    customName: customName || `P-${id.substring(0, 5)}`, // Use provided name or generate default
     birdY: BIRD_START_Y,
     velocity: 0,
     score: 0,
@@ -139,9 +141,10 @@ function startGameLoop(lobbyId: string) {
   lobby.nextObstacleId = 0;
 
   Object.values(lobby.players).forEach(player => {
-    const newPlayerState = initializePlayer(player.id); // This now initializes passedObstacles
-    lobby.players[player.id] = { ...lobby.players[player.id], ...newPlayerState };
-    // Explicitly clear if merging states: player.passedObstacles.clear(); (initializePlayer handles it)
+    // Preserve customName if it exists, otherwise re-initialize with a default or new one if provided
+    const existingCustomName = player.customName;
+    const newPlayerState = initializePlayer(player.id, existingCustomName);
+    lobby.players[player.id] = { ...newPlayerState }; // Completely replace with new state
   });
   
   lobby.obstacles = [];
@@ -250,57 +253,133 @@ function startGameLoop(lobbyId: string) {
   }, GAME_UPDATE_INTERVAL);
 }
 
+// --- Event Handlers for Restart Game ---
+function restartGame(lobbyId: string) {
+  const lobby = lobbies[lobbyId];
+  if (!lobby) return false;
+  
+  // Only allow restart if game is finished
+  if (lobby.gameState !== 'finished') return false;
+  
+  // Reset lobby to 'waiting' state and restart game
+  lobby.gameState = 'waiting';
+  
+  // Reset player states but keep names and connections
+  Object.keys(lobby.players).forEach(playerId => {
+    const customName = lobby.players[playerId].customName;
+    lobby.players[playerId] = initializePlayer(playerId, customName);
+  });
+  
+  // Clear obstacles
+  lobby.obstacles = [];
+  
+  // Notify all players of game restart
+  io.to(lobbyId).emit('gameRestarted', getLobbyState(lobbyId));
+  
+  // Start game if there are enough players
+  if (Object.keys(lobby.players).length >= 2) {
+    startGameLoop(lobbyId);
+  } else {
+    io.to(lobbyId).emit('waitingForPlayers', getLobbyState(lobbyId));
+  }
+  
+  return true;
+}
+
 // --- Socket Event Handlers (largely unchanged, ensure initializePlayer is used) ---
 io.on('connection', (socket: Socket) => {
   console.log(`New client connected: ${socket.id} from ${socket.handshake.address}`);
   socket.data.lobbyId = null;
 
-  socket.on('createLobby', () => {
-    if (socket.data.lobbyId && lobbies[socket.data.lobbyId]) {
-      socket.emit('alreadyInLobby', socket.data.lobbyId); return;
+  socket.on('createLobby', (data: { customName?: string }) => {
+    const playerId = socket.id;
+    if (Object.values(lobbies).some(l => l.players[playerId])) {
+      const existingLobby = Object.values(lobbies).find(l => l.players[playerId]);
+      if (existingLobby) {
+        socket.emit('alreadyInLobby', existingLobby.id);
+        return;
+      }
     }
-    const newLobbyId = generateUniqueLobbyId();
-    const player = initializePlayer(socket.id); // Uses updated initializePlayer
-    const newLobby: Lobby = {
-      id: newLobbyId, players: { [socket.id]: player }, gameState: 'waiting',
-      obstacles: [], gameLoopIntervalId: null, nextObstacleId: 0,
+
+    const lobbyId = generateUniqueLobbyId();
+    const player = initializePlayer(playerId, data.customName); // Pass customName here
+    lobbies[lobbyId] = {
+      id: lobbyId,
+      players: { [playerId]: player },
+      gameState: 'waiting',
+      obstacles: [],
+      gameLoopIntervalId: null,
+      nextObstacleId: 0,
     };
-    lobbies[newLobbyId] = newLobby;
-    socket.data.lobbyId = newLobbyId;
-    socket.join(newLobbyId);
-    socket.emit('lobbyCreated', newLobbyId);
-    io.to(newLobbyId).emit('lobbyStateUpdated', getLobbyState(newLobbyId));
+    socket.join(lobbyId);
+    socket.data.lobbyId = lobbyId; // Set the lobbyId in socket data
+    socket.emit('lobbyCreated', lobbyId);
+    io.to(lobbyId).emit('lobbyStateUpdated', getLobbyState(lobbyId));
+    console.log(`Player ${player.customName} (ID: ${playerId}) created lobby ${lobbyId}`);
   });
 
-  socket.on('joinLobby', (lobbyIdToJoin: string) => {
-    if (socket.data.lobbyId && lobbies[socket.data.lobbyId]) {
-      socket.emit('alreadyInLobby', socket.data.lobbyId); return;
-    }
+  socket.on('joinLobby', (data: { lobbyIdToJoin: string, customName?: string }) => {
+    const { lobbyIdToJoin, customName } = data;
+    const playerId = socket.id;
     const lobby = lobbies[lobbyIdToJoin];
-    if (!lobby) { socket.emit('lobbyNotFound', lobbyIdToJoin); return; }
-    if (Object.keys(lobby.players).length >= MAX_PLAYERS_PER_LOBBY) {
-      socket.emit('lobbyFull', lobbyIdToJoin); return;
+
+    if (!lobby) {
+      socket.emit('lobbyNotFound', lobbyIdToJoin);
+      return;
     }
-    const player = initializePlayer(socket.id); // Uses updated initializePlayer
-    lobby.players[socket.id] = player;
-    socket.data.lobbyId = lobbyIdToJoin;
+    if (Object.values(lobby.players).length >= MAX_PLAYERS_PER_LOBBY) {
+      socket.emit('lobbyFull', lobbyIdToJoin);
+      return;
+    }
+    if (lobby.players[playerId]) {
+      socket.emit('alreadyInLobby', lobbyIdToJoin); // Or just resend state
+      io.to(lobbyIdToJoin).emit('lobbyStateUpdated', getLobbyState(lobbyIdToJoin));
+      return;
+    }
+
+    const player = initializePlayer(playerId, customName); // Pass customName here
+    lobby.players[playerId] = player;
     socket.join(lobbyIdToJoin);
+    socket.data.lobbyId = lobbyIdToJoin; // Set the lobbyId in socket data
     socket.emit('lobbyJoined', lobbyIdToJoin, getLobbyState(lobbyIdToJoin));
-    io.to(lobbyIdToJoin).emit('lobbyStateUpdated', getLobbyState(lobbyIdToJoin));
-    if (Object.keys(lobby.players).length === MAX_PLAYERS_PER_LOBBY && lobby.gameState === 'waiting') {
+    io.to(lobbyIdToJoin).emit('lobbyStateUpdated', getLobbyState(lobbyIdToJoin)); // Inform others
+    console.log(`Player ${player.customName} (ID: ${playerId}) joined lobby ${lobbyIdToJoin}`);
+
+    // Start game if lobby is now full
+    if (Object.values(lobby.players).length === MAX_PLAYERS_PER_LOBBY && lobby.gameState === 'waiting') {
+      console.log(`Lobby ${lobbyIdToJoin} is full, starting game...`);
       startGameLoop(lobbyIdToJoin);
     }
   });
 
-  socket.on('playerJump', () => {
-    const lobbyId = socket.data.lobbyId;
+  // Add a handler for explicit tracking
+  socket.on('trackLobby', (lobbyId: string) => {
+    const lobby = lobbies[lobbyId];
+    if (lobby && lobby.players[socket.id]) {
+      socket.data.lobbyId = lobbyId;
+      console.log(`Socket ${socket.id} now explicitly tracking lobby ${lobbyId}`);
+    }
+  });
+
+  socket.on('playerJump', (explicitLobbyId?: string) => {
+    // Try explicit lobby ID first, then fallback to socket.data
+    const lobbyId = explicitLobbyId || socket.data.lobbyId;
     const playerId = socket.id;
+    
+    // Log received jump command
+    console.log(`Received jump from ${playerId} for lobby ${lobbyId}`);
+    
     if (lobbyId && lobbies[lobbyId] && lobbies[lobbyId].players[playerId]) {
       const lobby = lobbies[lobbyId];
       const player = lobby.players[playerId];
       if (lobby.gameState === 'active' && !player.gameOver) {
         player.velocity = JUMP_STRENGTH;
+        console.log(`Player ${player.customName} jumped!`);
+      } else {
+        console.log(`Jump rejected: gameState=${lobby.gameState}, playerGameOver=${player.gameOver}`);
       }
+    } else {
+      console.log(`Jump failed: lobbyId=${lobbyId}, player in lobby=${lobbyId && lobbies[lobbyId] && lobbies[lobbyId].players[playerId]}`);
     }
   });
 
@@ -354,11 +433,45 @@ io.on('connection', (socket: Socket) => {
       socket.emit('errorLeavingLobby', 'You are not currently in a lobby or data mismatch.');
     }
   });
+
+  // Handle restart game request
+  socket.on('restartGame', () => {
+    const lobbyId = socket.data.lobbyId;
+    const playerId = socket.id;
+    
+    if (!lobbyId || !lobbies[lobbyId]) {
+      socket.emit('restartGameError', 'Lobby not found');
+      return;
+    }
+    
+    const lobby = lobbies[lobbyId];
+    
+    // Only allow the "host" (first player who created the lobby) to restart the game
+    const playerIds = Object.keys(lobby.players);
+    const isHost = playerIds.length > 0 && playerIds[0] === playerId;
+    
+    if (!isHost) {
+      socket.emit('restartGameError', 'Only the lobby host can restart the game');
+      return;
+    }
+    
+    if (lobby.gameState !== 'finished') {
+      socket.emit('restartGameError', 'Game can only be restarted when finished');
+      return;
+    }
+    
+    const success = restartGame(lobbyId);
+    if (success) {
+      console.log(`Game restarted in lobby ${lobbyId} by host ${playerId}`);
+    } else {
+      socket.emit('restartGameError', 'Failed to restart game');
+    }
+  });
 });
 
 console.log(`Socket.IO server attempting to listen on port ${PORT}`);
-httpServer.listen(PORT, () => {
-  console.log(`Socket.IO server listening on port ${PORT}`);
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`Socket.IO server listening on 0.0.0.0:${PORT} (all network interfaces)`);
 });
 
 export { io, httpServer };

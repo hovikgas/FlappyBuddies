@@ -49,7 +49,7 @@ export default function Home() {
 
       <footer className="w-full max-w-md border-t p-4 flex items-center justify-center">
         <p className="text-center text-sm text-muted-foreground">
-          Created with ❤️ by Firebase Studio
+          Created with ❤️ by H&S Studios
         </p>
       </footer>
     </div>
