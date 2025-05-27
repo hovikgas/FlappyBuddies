@@ -29,6 +29,7 @@ const MIN_PIPE_HEIGHT = 50;
 interface Player {
   id: string; // This is socket.id
   customName?: string; // Added for custom player names
+  joinOrder: number; // Track join order for consistent color assignment
   birdY: number;
   velocity: number;
   score: number;
@@ -45,14 +46,15 @@ interface Obstacle {
 interface Lobby {
   id: string;
   players: Record<string, Player>;
-  gameState: 'waiting' | 'active' | 'finished';
+  gameState: 'waiting' | 'countdown' | 'active' | 'finished';
   obstacles: Obstacle[];
   gameLoopIntervalId: NodeJS.Timeout | null;
   nextObstacleId: number;
+  countdownTimeoutId: NodeJS.Timeout | null; // For countdown timer
 }
 
 const lobbies: Record<string, Lobby> = {};
-const MAX_PLAYERS_PER_LOBBY = 2;
+const MAX_PLAYERS_PER_LOBBY = 10; // Increased to support more players and utilize full color palette
 
 const httpServer: HTTPServer = createServer();
 const io = new SocketIOServer(httpServer, {
@@ -107,10 +109,11 @@ function getLobbyState(lobbyId: string): Lobby | null {
   }
 }
 
-function initializePlayer(id: string, customName?: string): Player {
+function initializePlayer(id: string, joinOrder: number, customName?: string): Player {
   return {
     id,
     customName: customName || `P-${id.substring(0, 5)}`, // Use provided name or generate default
+    joinOrder,
     birdY: BIRD_START_Y,
     velocity: 0,
     score: 0,
@@ -128,6 +131,60 @@ function generateNewObstacle(lobby: Lobby, xPosition: number): Obstacle {
   };
 }
 
+// --- Countdown System ---
+function startCountdown(lobbyId: string) {
+  const lobby = lobbies[lobbyId];
+  if (!lobby) return;
+
+  // Clear any existing countdown
+  if (lobby.countdownTimeoutId) {
+    clearTimeout(lobby.countdownTimeoutId);
+  }
+
+  lobby.gameState = 'countdown';
+  
+  // Countdown sequence: 3 (red), 2 (red), 1 (yellow), GO! (green)
+  const countdownSequence = [
+    { count: 3, color: 'red', message: '3' },
+    { count: 2, color: 'red', message: '2' },
+    { count: 1, color: 'yellow', message: '1' },
+    { count: 0, color: 'green', message: 'GO!' }
+  ];
+
+  let currentStep = 0;
+
+  function executeCountdownStep() {
+    if (currentStep >= countdownSequence.length) {
+      // Start the actual game
+      startGameLoop(lobbyId);
+      return;
+    }
+
+    const step = countdownSequence[currentStep];
+    
+    // Emit countdown event to all players
+    io.to(lobbyId).emit('countdown', {
+      count: step.count,
+      color: step.color,
+      message: step.message,
+      isLastStep: currentStep === countdownSequence.length - 1
+    });
+
+    console.log(`Lobby ${lobbyId} countdown: ${step.message} (${step.color})`);
+
+    currentStep++;
+    
+    // Schedule next step (1 second intervals)
+    lobby.countdownTimeoutId = setTimeout(() => {
+      executeCountdownStep();
+    }, 1000);
+  }
+
+  // Start the countdown
+  io.to(lobbyId).emit('lobbyStateUpdated', getLobbyState(lobbyId));
+  executeCountdownStep();
+}
+
 // --- Server-Side Game Loop ---
 function startGameLoop(lobbyId: string) {
   const lobby = lobbies[lobbyId];
@@ -141,9 +198,10 @@ function startGameLoop(lobbyId: string) {
   lobby.nextObstacleId = 0;
 
   Object.values(lobby.players).forEach(player => {
-    // Preserve customName if it exists, otherwise re-initialize with a default or new one if provided
+    // Preserve customName and joinOrder if they exist
     const existingCustomName = player.customName;
-    const newPlayerState = initializePlayer(player.id, existingCustomName);
+    const existingJoinOrder = player.joinOrder;
+    const newPlayerState = initializePlayer(player.id, existingJoinOrder, existingCustomName);
     lobby.players[player.id] = { ...newPlayerState }; // Completely replace with new state
   });
   
@@ -264,10 +322,11 @@ function restartGame(lobbyId: string) {
   // Reset lobby to 'waiting' state and restart game
   lobby.gameState = 'waiting';
   
-  // Reset player states but keep names and connections
+  // Reset player states but keep names, joinOrder and connections
   Object.keys(lobby.players).forEach(playerId => {
     const customName = lobby.players[playerId].customName;
-    lobby.players[playerId] = initializePlayer(playerId, customName);
+    const joinOrder = lobby.players[playerId].joinOrder;
+    lobby.players[playerId] = initializePlayer(playerId, joinOrder, customName);
   });
   
   // Clear obstacles
@@ -278,7 +337,7 @@ function restartGame(lobbyId: string) {
   
   // Start game if there are enough players
   if (Object.keys(lobby.players).length >= 2) {
-    startGameLoop(lobbyId);
+    startCountdown(lobbyId);
   } else {
     io.to(lobbyId).emit('waitingForPlayers', getLobbyState(lobbyId));
   }
@@ -302,7 +361,7 @@ io.on('connection', (socket: Socket) => {
     }
 
     const lobbyId = generateUniqueLobbyId();
-    const player = initializePlayer(playerId, data.customName); // Pass customName here
+    const player = initializePlayer(playerId, 0, data.customName); // First player, join order 0
     lobbies[lobbyId] = {
       id: lobbyId,
       players: { [playerId]: player },
@@ -310,6 +369,7 @@ io.on('connection', (socket: Socket) => {
       obstacles: [],
       gameLoopIntervalId: null,
       nextObstacleId: 0,
+      countdownTimeoutId: null,
     };
     socket.join(lobbyId);
     socket.data.lobbyId = lobbyId; // Set the lobbyId in socket data
@@ -337,7 +397,8 @@ io.on('connection', (socket: Socket) => {
       return;
     }
 
-    const player = initializePlayer(playerId, customName); // Pass customName here
+    const joinOrder = Object.keys(lobby.players).length; // Join order based on current player count
+    const player = initializePlayer(playerId, joinOrder, customName);
     lobby.players[playerId] = player;
     socket.join(lobbyIdToJoin);
     socket.data.lobbyId = lobbyIdToJoin; // Set the lobbyId in socket data
@@ -345,10 +406,13 @@ io.on('connection', (socket: Socket) => {
     io.to(lobbyIdToJoin).emit('lobbyStateUpdated', getLobbyState(lobbyIdToJoin)); // Inform others
     console.log(`Player ${player.customName} (ID: ${playerId}) joined lobby ${lobbyIdToJoin}`);
 
-    // Start game if lobby is now full
-    if (Object.values(lobby.players).length === MAX_PLAYERS_PER_LOBBY && lobby.gameState === 'waiting') {
-      console.log(`Lobby ${lobbyIdToJoin} is full, starting game...`);
-      startGameLoop(lobbyIdToJoin);
+    // Auto-start game when we have at least 2 players (instead of waiting for lobby to be full)
+    if (Object.values(lobby.players).length >= 2 && lobby.gameState === 'waiting') {
+      console.log(`Lobby ${lobbyIdToJoin} has ${Object.values(lobby.players).length} players, starting countdown...`);
+      // Add a small delay to allow players to see lobby state before countdown starts
+      setTimeout(() => {
+        startCountdown(lobbyIdToJoin);
+      }, 2000);
     }
   });
 
@@ -466,6 +530,39 @@ io.on('connection', (socket: Socket) => {
     } else {
       socket.emit('restartGameError', 'Failed to restart game');
     }
+  });
+
+  // Handle manual start game request
+  socket.on('startGame', () => {
+    const lobbyId = socket.data.lobbyId;
+    const playerId = socket.id;
+    
+    if (!lobbyId || !lobbies[lobbyId]) {
+      socket.emit('startGameError', 'Lobby not found');
+      return;
+    }
+    
+    const lobby = lobbies[lobbyId];
+    
+    // Check if player is the host (first player in the lobby)
+    const playerIds = Object.keys(lobby.players);
+    if (playerIds.length === 0 || playerIds[0] !== playerId) {
+      socket.emit('startGameError', 'Only the lobby host can start the game');
+      return;
+    }
+    
+    if (lobby.gameState !== 'waiting') {
+      socket.emit('startGameError', 'Game can only be started when waiting');
+      return;
+    }
+    
+    if (Object.values(lobby.players).length < 1) {
+      socket.emit('startGameError', 'Need at least 1 player to start the game');
+      return;
+    }
+    
+    console.log(`Game manually started in lobby ${lobbyId} by host ${playerId}`);
+    startCountdown(lobbyId);
   });
 });
 
