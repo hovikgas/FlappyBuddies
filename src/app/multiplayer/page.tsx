@@ -11,12 +11,20 @@ interface Cloud { x: number; y: number; width: number; speed: number; }
 interface PlayerState {
   id: string;
   customName?: string;
+  joinOrder: number;
   birdY: number;
   velocity: number; // Server might not send this, used for client-side rotation if desired
   score: number;
   gameOver: boolean;
 }
-interface LobbyState { id: string; players: Record<string, PlayerState>; gameState: "waiting" | "active" | "finished"; obstacles: Obstacle[]; }
+interface LobbyState { id: string; players: Record<string, PlayerState>; gameState: "waiting" | "countdown" | "active" | "finished"; obstacles: Obstacle[]; }
+
+interface CountdownEvent {
+  count: number;
+  color: 'red' | 'yellow' | 'green';
+  message: string;
+  isLastStep: boolean;
+}
 
 // Function to determine socket server URL based on environment
 const getSocketServerUrl = () => {
@@ -38,7 +46,18 @@ const BIRD_WIDTH = 34;
 const BIRD_HEIGHT = 24;
 const OBSTACLE_WIDTH = 50;
 // const OBSTACLE_GAP = 200; // Server controls this (OBSTACLE_GAP_SIZE)
-const BIRD_COLOR = "coral";
+const BIRD_COLORS = [
+  "#FF6B6B", // Coral Red
+  "#4ECDC4", // Teal
+  "#45B7D1", // Sky Blue
+  "#96CEB4", // Mint Green
+  "#FFEAA7", // Light Yellow
+  "#DDA0DD", // Plum
+  "#98D8E8", // Light Blue
+  "#F7DC6F", // Banana Yellow
+  "#BB8FCE", // Lavender
+  "#85C1E9", // Light Sky Blue
+];
 const OBSTACLE_COLOR = "green";
 const SCORE_COLOR = "coral";
 const BACKGROUND_COLOR = "#87CEEB";
@@ -61,6 +80,7 @@ export default function MultiplayerPage() {
   const [lobbyState, setLobbyState] = useState<LobbyState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
+  const [countdown, setCountdown] = useState<CountdownEvent | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [canvasWidth, setCanvasWidth] = useState(0);
@@ -74,6 +94,17 @@ export default function MultiplayerPage() {
   useEffect(() => {
     lobbyStateRef.current = lobbyState;
   }, [lobbyState]);
+
+  // Helper function to get player color based on their join order
+  const getPlayerColor = (playerId: string, players: Record<string, PlayerState>): string => {
+    const player = players[playerId];
+    if (!player) {
+      console.warn('Player not found for color assignment:', playerId);
+      return BIRD_COLORS[0]; // Default color
+    }
+    
+    return BIRD_COLORS[player.joinOrder % BIRD_COLORS.length];
+  };
 
   // Socket Connection and Event Handlers
   useEffect(() => {
@@ -175,6 +206,21 @@ export default function MultiplayerPage() {
     newSocket.on("restartGameError", (errorMessage: string) => {
       setError(`Error restarting game: ${errorMessage}`);
     });
+    newSocket.on("startGameError", (errorMessage: string) => {
+      setError(`Error starting game: ${errorMessage}`);
+    });
+    newSocket.on("countdown", (countdownData: CountdownEvent) => {
+      setCountdown(countdownData);
+      setMessage(`Game starting in ${countdownData.message}...`);
+      
+      // Clear countdown after the GO! message
+      if (countdownData.isLastStep) {
+        setTimeout(() => {
+          setCountdown(null);
+          setMessage("Game started!");
+        }, 1000);
+      }
+    });
     newSocket.on("waitingForPlayers", (updatedLobbyState: LobbyState) => {
       setMessage("Waiting for more players to join...");
       setLobbyState(updatedLobbyState);
@@ -226,7 +272,7 @@ export default function MultiplayerPage() {
     let animationFrameId: number;
 
     // --- Drawing Functions (defined stably or passed ctx and data) ---
-    const drawBird = (context: CanvasRenderingContext2D, player: PlayerState, frame: number) => {
+    const drawBird = (context: CanvasRenderingContext2D, player: PlayerState, frame: number, color: string) => {
       const x = 50;
       const y = player.birdY;
       context.save();
@@ -234,7 +280,7 @@ export default function MultiplayerPage() {
       // Rotate based on velocity (like in singleplayer)
       const rotation = Math.min(Math.max(player.velocity / 10, -0.5), 0.5);
       context.rotate(rotation);
-      context.fillStyle = BIRD_COLOR;
+      context.fillStyle = color;
       context.beginPath();
       context.ellipse(0, 0, BIRD_WIDTH / 2, BIRD_HEIGHT / 2, 0, 0, Math.PI * 2);
       context.fill();
@@ -291,7 +337,6 @@ export default function MultiplayerPage() {
 
     const drawScoresDisplay = (context: CanvasRenderingContext2D, currentLobby: LobbyState | null) => {
       if (!currentLobby) return;
-      context.fillStyle = SCORE_COLOR;
       context.font = "16px Arial";
       let yPos = canvasHeight - 70;
       const xPos = 10;
@@ -300,7 +345,12 @@ export default function MultiplayerPage() {
       Object.values(currentLobby.players).forEach(p => {
         const displayName = p.customName || `Player ${p.id.substring(0, 6)}`;
         const scoreText = `${displayName} - Score: ${p.score}`;
+        
+        // Use player's bird color for their score display
+        const playerColor = getPlayerColor(p.id, currentLobby.players);
+        context.fillStyle = playerColor;
         context.fillText(scoreText, xPos, yPos);
+        
         if (p.gameOver) {
           context.fillStyle = "red";
           const gameOverText = "(Game Over)";
@@ -310,7 +360,6 @@ export default function MultiplayerPage() {
           } else {
             context.fillText(gameOverText, xPos + scoreTextWidth + 5, yPos);
           }
-          context.fillStyle = SCORE_COLOR;
         }
         yPos += lineHeight;
       });
@@ -333,7 +382,8 @@ export default function MultiplayerPage() {
           currentLobby.obstacles.forEach(obs => drawObstacle(ctx, obs));
           Object.values(currentLobby.players).forEach(player => {
             birdFramesRef.current[player.id] = ((birdFramesRef.current[player.id] || 0) + 1) % (FRAMES_PER_ANIMATION * 2);
-            drawBird(ctx, player, birdFramesRef.current[player.id]);
+            const playerColor = getPlayerColor(player.id, currentLobby.players);
+            drawBird(ctx, player, birdFramesRef.current[player.id], playerColor);
           });
         } else if (currentLobby.gameState === "finished") {
           ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
@@ -360,6 +410,68 @@ export default function MultiplayerPage() {
           ctx.textAlign = "center";
           ctx.fillText("Waiting for players...", canvasWidth / 2, canvasHeight / 2);
           if (lobbyId) ctx.fillText(`Lobby ID: ${lobbyId}`, canvasWidth / 2, canvasHeight / 2 + 40);
+          ctx.textAlign = "start"; // Reset alignment
+        } else if (currentLobby.gameState === "countdown") {
+          // Draw background overlay
+          ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+          
+          // Draw countdown with racing-style lights
+          if (countdown) {
+            const centerX = canvasWidth / 2;
+            const centerY = canvasHeight / 2;
+            
+            // Draw large countdown text
+            ctx.fillStyle = "white";
+            ctx.font = "bold 120px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(countdown.message, centerX, centerY);
+            
+            // Draw racing light circles
+            const lightRadius = 30;
+            const lightSpacing = 80;
+            const startX = centerX - lightSpacing;
+            
+            // Draw three lights (like racing start lights)
+            for (let i = 0; i < 3; i++) {
+              const lightX = startX + (i * lightSpacing);
+              const lightY = centerY - 100;
+              
+              // Determine light color based on countdown state
+              let lightColor = '#333'; // Dark/off
+              if (countdown.color === 'red' && (countdown.count === 3 || countdown.count === 2)) {
+                lightColor = '#ff4444'; // Red
+              } else if (countdown.color === 'yellow' && countdown.count === 1) {
+                lightColor = '#ffff44'; // Yellow
+              } else if (countdown.color === 'green' && countdown.count === 0) {
+                lightColor = '#44ff44'; // Green
+              }
+              
+              // Draw light circle
+              ctx.fillStyle = lightColor;
+              ctx.beginPath();
+              ctx.arc(lightX, lightY, lightRadius, 0, Math.PI * 2);
+              ctx.fill();
+              
+              // Add light glow effect
+              if (lightColor !== '#333') {
+                ctx.shadowColor = lightColor;
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                ctx.arc(lightX, lightY, lightRadius - 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+              }
+              
+              // Draw light border
+              ctx.strokeStyle = 'white';
+              ctx.lineWidth = 3;
+              ctx.beginPath();
+              ctx.arc(lightX, lightY, lightRadius, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+          }
+          
           ctx.textAlign = "start"; // Reset alignment
         }
         drawScoresDisplay(ctx, currentLobby);
@@ -401,6 +513,14 @@ export default function MultiplayerPage() {
     if (socket && lobbyId && lobbyState?.gameState === "finished") {
       socket.emit("restartGame");
       setMessage("Requesting game restart...");
+      setError(null);
+    }
+  };
+
+  const handleStartGame = () => {
+    if (socket && lobbyId && lobbyState?.gameState === "waiting") {
+      socket.emit("startGame");
+      setMessage("Starting game...");
       setError(null);
     }
   };
@@ -486,13 +606,42 @@ export default function MultiplayerPage() {
         <h2 className="text-xl font-semibold mb-2">Lobby: {lobbyState.id}</h2>
         <p className="mb-1">Game State: <span className="font-medium text-indigo-600">{lobbyState.gameState}</span></p>
         <h3 className="font-semibold mt-3 mb-1">Players:</h3>
-        <ul className="list-disc list-inside space-y-1">
-          {Object.values(lobbyState.players).map((p) => (
-            <li key={p.id} className={`${p.id === socket?.id ? "font-bold text-blue-700" : "text-gray-600"} ${p.gameOver ? "line-through text-red-500" : ""}`}>
-              {p.customName || `Player ${p.id.substring(0, 6)}`} - Score: {p.score}
-            </li>
-          ))}
+        <ul className="list-none space-y-1">
+          {Object.values(lobbyState.players).map((p) => {
+            const playerColor = getPlayerColor(p.id, lobbyState.players);
+            return (
+              <li key={p.id} className={`flex items-center gap-2 ${p.id === socket?.id ? "font-bold text-blue-700" : "text-gray-600"} ${p.gameOver ? "line-through text-red-500" : ""}`}>
+                <div 
+                  className="w-4 h-4 rounded-full border border-gray-300" 
+                  style={{ backgroundColor: playerColor }}
+                ></div>
+                <span>{p.customName || `Player ${p.id.substring(0, 6)}`} - Score: {p.score}</span>
+              </li>
+            );
+          })}
         </ul>
+        {lobbyState.gameState === "waiting" && (
+          <div className="mt-4 text-center border-t pt-3">
+            <p className="text-lg font-bold text-gray-800">Waiting for Game to Start</p>
+            
+            {/* Check if this player is the host (first player) */}
+            {socket && Object.keys(lobbyState.players).length > 0 && Object.keys(lobbyState.players)[0] === socket.id ? (
+              <div className="mt-2">
+                <Button 
+                  onClick={handleStartGame} 
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  Start Game
+                </Button>
+                <p className="mt-1 text-xs text-gray-500">As the host, you can start the game when ready. Game auto-starts in 2 seconds when 2+ players join.</p>
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-gray-500">
+                Waiting for the lobby host to start the game, or for auto-start with 2+ players.
+              </p>
+            )}
+          </div>
+        )}
         {lobbyState.gameState === "finished" && (
           <div className="mt-4 text-center border-t pt-3">
             <p className="text-lg font-bold text-gray-800">Game Over!</p>
